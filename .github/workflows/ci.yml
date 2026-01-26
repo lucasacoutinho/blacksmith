@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup OCaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: '5.2'
+
+      - name: Install Melange
+        run: opam install -y dune melange
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build parser
+        run: |
+          eval $(opam env)
+          cd src/parser && dune build @melange
+          mkdir -p ../../dist/parser
+          cp -r _build/default/dist/* ../../dist/parser/
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Run tests
+        run: npm run test:run
+
+      - name: Package extension
+        run: npx vsce package --no-dependencies
