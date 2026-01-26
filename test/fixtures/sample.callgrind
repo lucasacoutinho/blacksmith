@@ -1,0 +1,59 @@
+version: 1
+creator: xdebug 3.2.0
+cmd: /var/www/html/index.php
+part: 1
+
+positions: line
+events: Time
+
+fl=(1) /var/www/html/index.php
+fn=(1) {main}
+1 500
+
+cfl=(2) /var/www/html/src/Controller/HomeController.php
+cfn=(2) App\Controller\HomeController->index
+calls=1 10
+1 15000
+
+cfl=(3) /var/www/html/src/Service/UserService.php
+cfn=(3) App\Service\UserService->getUsers
+calls=1 25
+1 8000
+
+fl=(2) /var/www/html/src/Controller/HomeController.php
+fn=(2) App\Controller\HomeController->index
+10 1000
+
+cfl=(3) /var/www/html/src/Service/UserService.php
+cfn=(3) App\Service\UserService->getUsers
+calls=5 25
+15 40000
+
+cfl=(4) /var/www/html/src/Repository/UserRepository.php
+cfn=(4) App\Repository\UserRepository->findAll
+calls=1 50
+20 25000
+
+fl=(3) /var/www/html/src/Service/UserService.php
+fn=(3) App\Service\UserService->getUsers
+25 2500
+
+cfl=(4) /var/www/html/src/Repository/UserRepository.php
+cfn=(4) App\Repository\UserRepository->findAll
+calls=10 50
+30 100000
+
+fl=(4) /var/www/html/src/Repository/UserRepository.php
+fn=(4) App\Repository\UserRepository->findAll
+50 5000
+
+cfl=(5) php:internal
+cfn=(5) PDO->query
+calls=10 0
+55 80000
+
+fl=(5) php:internal
+fn=(5) PDO->query
+0 75000
+
+summary: 352000

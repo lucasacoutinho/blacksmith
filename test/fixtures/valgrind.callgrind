@@ -1,0 +1,59 @@
+version: 1
+creator: callgrind-3.22.0
+pid: 12345
+cmd: ./myprogram
+part: 1
+
+positions: line
+events: Ir Dr Dw
+
+fl=main.cpp
+fn=main
+16 1500 200 50
+
+cfl=vector.cpp
+cfn=std::vector<int>::push_back(int const&)
+calls=100 45
+18 50000 8000 4000
+
+cfl=algorithm.cpp
+cfn=std::sort<int*, std::less<int>>
+calls=1 120
+22 250000 40000 20000
+
+fl=vector.cpp
+fn=std::vector<int>::push_back(int const&)
+45 25000 4000 2000
+
+cfl=allocator.cpp
+cfn=std::allocator<int>::allocate(unsigned long)
+calls=10 30
+48 15000 2000 1000
+
+fl=allocator.cpp
+fn=std::allocator<int>::allocate(unsigned long)
+30 15000 2000 1000
+
+cfl=libc.so
+cfn=malloc
+calls=10 0
+32 10000 1500 800
+
+fl=libc.so
+fn=malloc
+0 10000 1500 800
+
+fl=algorithm.cpp
+fn=std::sort<int*, std::less<int>>
+120 100000 15000 8000
+
+cfl=algorithm.cpp
+cfn=std::__introsort_loop<int*, long, std::less<int>>
+calls=5 200
+125 150000 25000 12000
+
+fl=algorithm.cpp
+fn=std::__introsort_loop<int*, long, std::less<int>>
+200 150000 25000 12000
+
+summary: 766500 123700 60850

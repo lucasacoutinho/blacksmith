@@ -1,0 +1,400 @@
+version: 1
+creator: xdebug 3.3.0 (PHP 8.2.15)
+cmd: /var/www/html/public/index.php
+part: 1
+
+positions: line
+events: Time Memory
+
+fl=(1) /var/www/html/public/index.php
+fn=(1) {main}
+1 150 1024
+
+cfl=(2) /var/www/html/vendor/autoload.php
+cfn=(2) require
+calls=1 1
+2 5000 8192
+
+cfl=(3) /var/www/html/bootstrap/app.php
+cfn=(3) require
+calls=1 1
+3 25000 32768
+
+cfl=(10) /var/www/html/vendor/laravel/framework/src/Illuminate/Foundation/Application.php
+cfn=(10) Illuminate\Foundation\Application->handle
+calls=1 50
+5 2500000 524288
+
+fl=(2) /var/www/html/vendor/autoload.php
+fn=(2) require
+1 500 2048
+
+cfl=(4) /var/www/html/vendor/composer/autoload_real.php
+cfn=(4) ComposerAutoloaderInit::getLoader
+calls=1 5
+2 4500 6144
+
+fl=(3) /var/www/html/bootstrap/app.php
+fn=(3) require
+1 2000 4096
+
+cfl=(5) /var/www/html/vendor/laravel/framework/src/Illuminate/Foundation/Application.php
+cfn=(5) Illuminate\Foundation\Application->__construct
+calls=1 10
+5 23000 28672
+
+fl=(4) /var/www/html/vendor/composer/autoload_real.php
+fn=(4) ComposerAutoloaderInit::getLoader
+5 4500 6144
+
+fl=(5) /var/www/html/vendor/laravel/framework/src/Illuminate/Foundation/Application.php
+fn=(5) Illuminate\Foundation\Application->__construct
+10 8000 16384
+
+cfl=(6) /var/www/html/vendor/laravel/framework/src/Illuminate/Container/Container.php
+cfn=(6) Illuminate\Container\Container->__construct
+calls=1 15
+12 15000 12288
+
+fl=(6) /var/www/html/vendor/laravel/framework/src/Illuminate/Container/Container.php
+fn=(6) Illuminate\Container\Container->__construct
+15 15000 12288
+
+fl=(10) /var/www/html/vendor/laravel/framework/src/Illuminate/Foundation/Application.php
+fn=(10) Illuminate\Foundation\Application->handle
+50 50000 65536
+
+cfl=(11) /var/www/html/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php
+cfn=(11) Illuminate\Foundation\Http\Kernel->handle
+calls=1 55
+52 2450000 458752
+
+fl=(11) /var/www/html/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php
+fn=(11) Illuminate\Foundation\Http\Kernel->handle
+55 25000 32768
+
+cfl=(12) /var/www/html/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php
+cfn=(12) Illuminate\Pipeline\Pipeline->then
+calls=1 60
+58 2425000 425984
+
+fl=(12) /var/www/html/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php
+fn=(12) Illuminate\Pipeline\Pipeline->then
+60 15000 16384
+
+cfl=(13) /var/www/html/app/Http/Middleware/Authenticate.php
+cfn=(13) App\Http\Middleware\Authenticate->handle
+calls=1 65
+62 50000 32768
+
+cfl=(14) /var/www/html/vendor/laravel/framework/src/Illuminate/Session/Middleware/StartSession.php
+cfn=(14) Illuminate\Session\Middleware\StartSession->handle
+calls=1 70
+64 150000 65536
+
+cfl=(20) /var/www/html/vendor/laravel/framework/src/Illuminate/Routing/Router.php
+cfn=(20) Illuminate\Routing\Router->dispatch
+calls=1 100
+68 2210000 311296
+
+fl=(13) /var/www/html/app/Http/Middleware/Authenticate.php
+fn=(13) App\Http\Middleware\Authenticate->handle
+65 5000 8192
+
+cfl=(15) /var/www/html/vendor/laravel/framework/src/Illuminate/Auth/AuthManager.php
+cfn=(15) Illuminate\Auth\AuthManager->check
+calls=1 70
+68 45000 24576
+
+fl=(14) /var/www/html/vendor/laravel/framework/src/Illuminate/Session/Middleware/StartSession.php
+fn=(14) Illuminate\Session\Middleware\StartSession->handle
+70 20000 16384
+
+cfl=(16) /var/www/html/vendor/laravel/framework/src/Illuminate/Session/Store.php
+cfn=(16) Illuminate\Session\Store->start
+calls=1 75
+72 80000 32768
+
+cfl=(17) /var/www/html/vendor/laravel/framework/src/Illuminate/Session/Store.php
+cfn=(17) Illuminate\Session\Store->save
+calls=1 80
+90 50000 16384
+
+fl=(15) /var/www/html/vendor/laravel/framework/src/Illuminate/Auth/AuthManager.php
+fn=(15) Illuminate\Auth\AuthManager->check
+70 15000 8192
+
+cfl=(18) /var/www/html/vendor/laravel/framework/src/Illuminate/Auth/SessionGuard.php
+cfn=(18) Illuminate\Auth\SessionGuard->user
+calls=1 75
+72 30000 16384
+
+fl=(16) /var/www/html/vendor/laravel/framework/src/Illuminate/Session/Store.php
+fn=(16) Illuminate\Session\Store->start
+75 25000 16384
+
+cfl=(19) /var/www/html/vendor/laravel/framework/src/Illuminate/Session/FileSessionHandler.php
+cfn=(19) Illuminate\Session\FileSessionHandler->read
+calls=1 80
+78 55000 16384
+
+fl=(17) /var/www/html/vendor/laravel/framework/src/Illuminate/Session/Store.php
+fn=(17) Illuminate\Session\Store->save
+80 15000 8192
+
+cfl=(19) /var/www/html/vendor/laravel/framework/src/Illuminate/Session/FileSessionHandler.php
+cfn=(51) Illuminate\Session\FileSessionHandler->write
+calls=1 85
+82 35000 8192
+
+fl=(18) /var/www/html/vendor/laravel/framework/src/Illuminate/Auth/SessionGuard.php
+fn=(18) Illuminate\Auth\SessionGuard->user
+75 10000 8192
+
+cfl=(50) /var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php
+cfn=(50) Illuminate\Database\Eloquent\Builder->first
+calls=1 80
+78 20000 8192
+
+fl=(19) /var/www/html/vendor/laravel/framework/src/Illuminate/Session/FileSessionHandler.php
+fn=(19) Illuminate\Session\FileSessionHandler->read
+80 55000 16384
+
+fl=(51) /var/www/html/vendor/laravel/framework/src/Illuminate/Session/FileSessionHandler.php
+fn=(51) Illuminate\Session\FileSessionHandler->write
+85 35000 8192
+
+fl=(20) /var/www/html/vendor/laravel/framework/src/Illuminate/Routing/Router.php
+fn=(20) Illuminate\Routing\Router->dispatch
+100 30000 32768
+
+cfl=(21) /var/www/html/vendor/laravel/framework/src/Illuminate/Routing/Route.php
+cfn=(21) Illuminate\Routing\Route->run
+calls=1 105
+102 2180000 278528
+
+fl=(21) /var/www/html/vendor/laravel/framework/src/Illuminate/Routing/Route.php
+fn=(21) Illuminate\Routing\Route->run
+105 10000 8192
+
+cfl=(22) /var/www/html/app/Http/Controllers/ProductController.php
+cfn=(22) App\Http\Controllers\ProductController->index
+calls=1 110
+108 2170000 270336
+
+fl=(22) /var/www/html/app/Http/Controllers/ProductController.php
+fn=(22) App\Http\Controllers\ProductController->index
+110 15000 16384
+
+cfl=(30) /var/www/html/app/Services/ProductService.php
+cfn=(30) App\Services\ProductService->getProducts
+calls=1 115
+112 1200000 131072
+
+cfl=(40) /var/www/html/vendor/laravel/framework/src/Illuminate/View/Factory.php
+cfn=(40) Illuminate\View\Factory->make
+calls=1 120
+118 955000 122880
+
+fl=(30) /var/www/html/app/Services/ProductService.php
+fn=(30) App\Services\ProductService->getProducts
+115 25000 16384
+
+cfl=(31) /var/www/html/app/Repositories/ProductRepository.php
+cfn=(31) App\Repositories\ProductRepository->findAll
+calls=1 120
+118 850000 65536
+
+cfl=(32) /var/www/html/app/Services/CacheService.php
+cfn=(32) App\Services\CacheService->remember
+calls=1 125
+122 325000 49152
+
+fl=(31) /var/www/html/app/Repositories/ProductRepository.php
+fn=(31) App\Repositories\ProductRepository->findAll
+120 20000 16384
+
+cfl=(33) /var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php
+cfn=(33) Illuminate\Database\Eloquent\Builder->get
+calls=1 125
+122 830000 49152
+
+fl=(32) /var/www/html/app/Services/CacheService.php
+fn=(32) App\Services\CacheService->remember
+125 15000 8192
+
+cfl=(34) /var/www/html/vendor/laravel/framework/src/Illuminate/Cache/RedisStore.php
+cfn=(34) Illuminate\Cache\RedisStore->get
+calls=1 130
+128 150000 24576
+
+cfl=(34) /var/www/html/vendor/laravel/framework/src/Illuminate/Cache/RedisStore.php
+cfn=(35) Illuminate\Cache\RedisStore->put
+calls=1 135
+132 160000 16384
+
+fl=(33) /var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php
+fn=(33) Illuminate\Database\Eloquent\Builder->get
+125 35000 16384
+
+cfl=(36) /var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php
+cfn=(36) Illuminate\Database\Query\Builder->get
+calls=1 130
+128 795000 32768
+
+fl=(34) /var/www/html/vendor/laravel/framework/src/Illuminate/Cache/RedisStore.php
+fn=(34) Illuminate\Cache\RedisStore->get
+130 50000 8192
+
+cfl=(37) /var/www/html/vendor/predis/predis/src/Client.php
+cfn=(37) Predis\Client->get
+calls=1 135
+132 100000 16384
+
+fl=(35) /var/www/html/vendor/laravel/framework/src/Illuminate/Cache/RedisStore.php
+fn=(35) Illuminate\Cache\RedisStore->put
+135 40000 8192
+
+cfl=(37) /var/www/html/vendor/predis/predis/src/Client.php
+cfn=(38) Predis\Client->set
+calls=1 140
+138 120000 8192
+
+fl=(36) /var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php
+fn=(36) Illuminate\Database\Query\Builder->get
+130 45000 16384
+
+cfl=(39) /var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php
+cfn=(39) Illuminate\Database\Connection->select
+calls=1 135
+132 750000 16384
+
+fl=(37) /var/www/html/vendor/predis/predis/src/Client.php
+fn=(37) Predis\Client->get
+135 100000 16384
+
+fl=(38) /var/www/html/vendor/predis/predis/src/Client.php
+fn=(38) Predis\Client->set
+140 120000 8192
+
+fl=(39) /var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php
+fn=(39) Illuminate\Database\Connection->select
+135 50000 8192
+
+cfl=(52) /var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php
+cfn=(52) Illuminate\Database\MySqlConnection->run
+calls=1 140
+138 700000 8192
+
+fl=(52) /var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php
+fn=(52) Illuminate\Database\MySqlConnection->run
+140 25000 4096
+
+cfl=(53) php:internal
+cfn=(53) PDOStatement->execute
+calls=1 145
+142 550000 2048
+
+cfl=(54) php:internal
+cfn=(54) PDOStatement->fetchAll
+calls=1 150
+148 125000 2048
+
+fl=(53) php:internal
+fn=(53) PDOStatement->execute
+145 550000 2048
+
+fl=(54) php:internal
+fn=(54) PDOStatement->fetchAll
+150 125000 2048
+
+fl=(50) /var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php
+fn=(50) Illuminate\Database\Eloquent\Builder->first
+80 5000 4096
+
+cfl=(52) /var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php
+cfn=(55) Illuminate\Database\MySqlConnection->selectOne
+calls=1 85
+82 15000 4096
+
+fl=(55) /var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php
+fn=(55) Illuminate\Database\MySqlConnection->selectOne
+85 15000 4096
+
+fl=(40) /var/www/html/vendor/laravel/framework/src/Illuminate/View/Factory.php
+fn=(40) Illuminate\View\Factory->make
+120 35000 32768
+
+cfl=(41) /var/www/html/vendor/laravel/framework/src/Illuminate/View/View.php
+cfn=(41) Illuminate\View\View->render
+calls=1 125
+122 920000 90112
+
+fl=(41) /var/www/html/vendor/laravel/framework/src/Illuminate/View/View.php
+fn=(41) Illuminate\View\View->render
+125 25000 16384
+
+cfl=(42) /var/www/html/vendor/laravel/framework/src/Illuminate/View/Engines/CompilerEngine.php
+cfn=(42) Illuminate\View\Engines\CompilerEngine->get
+calls=1 130
+128 895000 73728
+
+fl=(42) /var/www/html/vendor/laravel/framework/src/Illuminate/View/Engines/CompilerEngine.php
+fn=(42) Illuminate\View\Engines\CompilerEngine->get
+130 30000 16384
+
+cfl=(43) /var/www/html/vendor/laravel/framework/src/Illuminate/View/Compilers/BladeCompiler.php
+cfn=(43) Illuminate\View\Compilers\BladeCompiler->compile
+calls=1 135
+132 250000 24576
+
+cfl=(44) /var/www/html/storage/framework/views/products_index.php
+cfn=(44) include
+calls=1 140
+138 615000 32768
+
+fl=(43) /var/www/html/vendor/laravel/framework/src/Illuminate/View/Compilers/BladeCompiler.php
+fn=(43) Illuminate\View\Compilers\BladeCompiler->compile
+135 250000 24576
+
+fl=(44) /var/www/html/storage/framework/views/products_index.php
+fn=(44) include
+140 100000 16384
+
+cfl=(45) /var/www/html/storage/framework/views/layouts_app.php
+cfn=(45) include
+calls=1 145
+142 350000 8192
+
+cfl=(46) /var/www/html/storage/framework/views/partials_product_card.php
+cfn=(46) include
+calls=50 150
+155 165000 8192
+
+fl=(45) /var/www/html/storage/framework/views/layouts_app.php
+fn=(45) include
+145 150000 4096
+
+cfl=(47) /var/www/html/storage/framework/views/partials_header.php
+cfn=(47) include
+calls=1 150
+148 100000 2048
+
+cfl=(48) /var/www/html/storage/framework/views/partials_footer.php
+cfn=(48) include
+calls=1 155
+152 100000 2048
+
+fl=(46) /var/www/html/storage/framework/views/partials_product_card.php
+fn=(46) include
+150 165000 8192
+
+fl=(47) /var/www/html/storage/framework/views/partials_header.php
+fn=(47) include
+150 100000 2048
+
+fl=(48) /var/www/html/storage/framework/views/partials_footer.php
+fn=(48) include
+155 100000 2048
+
+summary: 5230000 1048576

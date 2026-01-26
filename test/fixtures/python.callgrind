@@ -1,0 +1,76 @@
+version: 1
+creator: pyprof2calltree 1.4.5
+cmd: python3 app.py
+part: 1
+
+positions: line
+events: Time
+
+fl=app.py
+fn=<module>
+1 500
+
+cfl=app.py
+cfn=main
+calls=1 10
+3 150000
+
+fl=app.py
+fn=main
+10 2000
+
+cfl=utils.py
+cfn=process_data
+calls=1 25
+15 80000
+
+cfl=models.py
+cfn=User.__init__
+calls=50 40
+20 25000
+
+fl=utils.py
+fn=process_data
+25 5000
+
+cfl=pandas/_libs/lib.pyx
+cfn=pandas._libs.lib.maybe_convert_objects
+calls=1 100
+30 45000
+
+cfl=numpy/core/_methods.py
+cfn=numpy.core._methods._mean
+calls=10 50
+35 30000
+
+fl=models.py
+fn=User.__init__
+40 500
+
+cfl=pydantic/main.py
+cfn=pydantic.main.BaseModel.__init__
+calls=50 200
+42 24500
+
+fl=pydantic/main.py
+fn=pydantic.main.BaseModel.__init__
+200 24500
+
+fl=pandas/_libs/lib.pyx
+fn=pandas._libs.lib.maybe_convert_objects
+100 45000
+
+fl=numpy/core/_methods.py
+fn=numpy.core._methods._mean
+50 10000
+
+cfl=numpy/core/_methods.py
+cfn=numpy.core._methods._sum
+calls=10 80
+55 20000
+
+fl=numpy/core/_methods.py
+fn=numpy.core._methods._sum
+80 20000
+
+summary: 482000
