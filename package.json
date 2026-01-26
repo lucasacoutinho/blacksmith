@@ -1,0 +1,101 @@
+{
+  "name": "blacksmith",
+  "displayName": "Blacksmith",
+  "description": "Visualize callgrind/cachegrind profiles with Flat Profile, Call Graph, Caller Map, and Flame Graph views",
+  "version": "0.1.0",
+  "publisher": "lucas",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Debuggers",
+    "Visualization"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "blacksmith.openProfile",
+        "title": "Open Profiling File",
+        "category": "Blacksmith"
+      },
+      {
+        "command": "blacksmith.clearCache",
+        "title": "Clear Profile Cache",
+        "category": "Blacksmith"
+      }
+    ],
+    "languages": [
+      {
+        "id": "callgrind",
+        "extensions": [
+          ".callgrind",
+          ".cachegrind"
+        ],
+        "aliases": [
+          "Callgrind",
+          "Cachegrind"
+        ]
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "blacksmith.profile",
+        "displayName": "Profile Viewer",
+        "selector": [
+          {
+            "filenamePattern": "*.callgrind"
+          },
+          {
+            "filenamePattern": "*.cachegrind"
+          },
+          {
+            "filenamePattern": "cachegrind.out*"
+          },
+          {
+            "filenamePattern": "callgrind.out*"
+          }
+        ],
+        "priority": "default"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build:prod",
+    "build": "npm run build:extension && npm run build:webview",
+    "build:prod": "npm run build:extension:prod && npm run build:webview:prod",
+    "build:parser": "cd src/parser && dune build @melange && cp -r _build/default/dist/* ../../dist/parser/",
+    "build:parser:watch": "cd src/parser && dune build @melange --watch",
+    "build:extension": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
+    "build:extension:prod": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --minify",
+    "build:webview": "esbuild src/webview/index.tsx --bundle --outfile=dist/webview.js --format=iife --platform=browser --loader:.tsx=tsx --jsx=automatic --sourcemap",
+    "build:webview:prod": "esbuild src/webview/index.tsx --bundle --outfile=dist/webview.js --format=iife --platform=browser --loader:.tsx=tsx --jsx=automatic --minify --define:process.env.NODE_ENV=\\\"production\\\"",
+    "watch": "concurrently \"npm run watch:extension\" \"npm run watch:webview\"",
+    "watch:extension": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap --watch",
+    "watch:webview": "esbuild src/webview/index.tsx --bundle --outfile=dist/webview.js --format=iife --platform=browser --loader:.tsx=tsx --jsx=automatic --sourcemap --watch",
+    "test": "vitest",
+    "test:run": "vitest --run",
+    "lint": "eslint src --ext ts,tsx",
+    "package": "npm run build:prod && vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/react-window": "^1.8.8",
+    "@types/vscode": "^1.85.0",
+    "concurrently": "^8.2.0",
+    "esbuild": "^0.19.0",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.2.0"
+  },
+  "dependencies": {
+    "effect": "^3.19.15",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-window": "^1.8.10",
+    "zustand": "^5.0.10"
+  }
+}

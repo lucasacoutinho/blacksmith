@@ -1,0 +1,23 @@
+node_modules/
+dist/
+*.vsix
+.vscode-test/
+out/
+
+# OCaml build artifacts
+_build/
+_opam/
+*.install
+.merlin
+
+# Reference repositories
+kcachegrind/
+
+# Claude/AI tool files
+.claude/
+.agents/
+.codex/
+.cursor/
+.gemini/
+.opencode/
+skills/
