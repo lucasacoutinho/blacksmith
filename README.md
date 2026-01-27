@@ -1,6 +1,13 @@
 # Blacksmith
 
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/blacksmith.blacksmith?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=blacksmith.blacksmith)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/blacksmith.blacksmith)](https://marketplace.visualstudio.com/items?itemName=blacksmith.blacksmith)
+
 A VS Code extension for visualizing callgrind/cachegrind profiles with Flat Profile, Call Graph, Caller Map, and Flame Graph views.
+
+## Installation
+
+Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=blacksmith.blacksmith) or search for "Blacksmith" in the Extensions view (`Ctrl+Shift+X`).
 
 ## Supported Profilers
 
@@ -18,22 +25,20 @@ A VS Code extension for visualizing callgrind/cachegrind profiles with Flat Prof
 - **Multi-metric support**: Switch between different cost metrics (Time, Memory, Instructions, etc.)
 - **Profile caching**: Parsed profiles are cached for fast reopening
 
-## Installation
-
-```bash
-npm install
-npm run build
-```
-
-Press F5 in VS Code to launch the extension in development mode.
-
 ## Usage
 
-1. Open the Command Palette (Ctrl+Shift+P / Cmd+Shift+P)
-2. Run "Blacksmith: Open Profiling File"
+1. Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
+2. Run **Blacksmith: Open Profiling File**
 3. Select a callgrind/cachegrind file
 
-The extension recognizes files matching `*.callgrind`, `*.cachegrind`, `callgrind.out*`, or `cachegrind.out*`.
+The extension automatically opens files matching `*.callgrind`, `*.cachegrind`, `callgrind.out*`, or `cachegrind.out*`.
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `Blacksmith: Open Profiling File` | Open a file picker to select a profile |
+| `Blacksmith: Clear Profile Cache` | Clear all cached parsed profiles |
 
 ## Generating Profile Data
 
@@ -61,12 +66,25 @@ pyprof2calltree -i profile.out -o profile.callgrind
 ## Development
 
 ```bash
-npm run watch    # Watch mode
-npm test         # Run tests
-npm run build    # Production build
+# Install dependencies
+npm install
+
+# Watch mode (extension + webview)
+npm run watch
+
+# Run tests
+npm test
+
+# Production build
+npm run build:prod
+
+# Package extension
+npm run package
 ```
 
-## Project Structure
+Press `F5` in VS Code to launch the extension in development mode.
+
+### Project Structure
 
 ```
 src/
@@ -74,13 +92,17 @@ src/
   types.ts               # Shared TypeScript types with Effect Brand
   cache.ts               # Profile caching with Effect patterns
   parser/
-    callgrind.ts         # Streaming callgrind format parser
+    index.ts             # TypeScript interface to Melange parser
+    callgrind.ml         # OCaml/Melange callgrind format parser
+    parser.ml            # Main parser logic
+    lexer.ml             # Tokenizer
+    types.ml             # Parser type definitions
   views/
     ProfileEditorProvider.ts  # Custom editor provider
   webview/
     index.tsx            # React entry point
     store.ts             # Zustand store with Effect Match
-    components/          # React components
+    components/          # React components (FlatProfile, CallGraph, CallerMap, FlameGraph)
     hooks/               # Custom React hooks
     utils/               # Formatting and color utilities
 ```
