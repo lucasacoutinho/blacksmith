@@ -23,6 +23,7 @@ jobs:
         uses: ocaml/setup-ocaml@v3
         with:
           ocaml-compiler: '5.2'
+          dune-cache: true
 
       - name: Install Melange
         run: opam install -y dune melange
