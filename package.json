@@ -2,7 +2,7 @@
   "name": "blacksmith",
   "displayName": "Blacksmith",
   "description": "Visualize callgrind/cachegrind profiles with Flat Profile, Call Graph, Caller Map, and Flame Graph views",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "lucasalvcoutinho",
   "license": "MIT",
   "repository": {

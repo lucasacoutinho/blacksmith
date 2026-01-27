@@ -5,7 +5,7 @@
 src/**
 test/**
 node_modules/**
-*.map
+**/*.map
 .gitignore
 tsconfig.json
 *.md

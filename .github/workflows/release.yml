@@ -44,6 +44,12 @@ jobs:
       - name: Run tests
         run: npm run test:run
 
+      - name: Debug package contents
+        run: |
+          echo "Files to be packaged:"
+          npx vsce ls --no-dependencies | wc -l
+          npx vsce ls --no-dependencies | head -100
+
       - name: Publish to VS Code Marketplace
         run: npx vsce publish --no-dependencies
         env:
