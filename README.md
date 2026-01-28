@@ -3,7 +3,7 @@
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/lucasalvcoutinho.blacksmith?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=lucasalvcoutinho.blacksmith)
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/lucasalvcoutinho.blacksmith)](https://marketplace.visualstudio.com/items?itemName=lucasalvcoutinho.blacksmith)
 
-A VS Code extension for visualizing callgrind/cachegrind profiles with Flat Profile, Call Graph, Caller Map, and Flame Graph views.
+A VS Code extension for visualizing callgrind/cachegrind profiles with Flat Profile, Call Graph, Caller Map, and Flame Graph views. Inspired by [KCachegrind](https://github.com/KDE/kcachegrind).
 
 ## Installation
 
