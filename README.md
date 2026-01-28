@@ -1,13 +1,13 @@
 # Blacksmith
 
-[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/blacksmith.blacksmith?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=blacksmith.blacksmith)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/blacksmith.blacksmith)](https://marketplace.visualstudio.com/items?itemName=blacksmith.blacksmith)
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/lucasalvcoutinho.blacksmith?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=lucasalvcoutinho.blacksmith)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/lucasalvcoutinho.blacksmith)](https://marketplace.visualstudio.com/items?itemName=lucasalvcoutinho.blacksmith)
 
 A VS Code extension for visualizing callgrind/cachegrind profiles with Flat Profile, Call Graph, Caller Map, and Flame Graph views.
 
 ## Installation
 
-Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=blacksmith.blacksmith) or search for "Blacksmith" in the Extensions view (`Ctrl+Shift+X`).
+Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=lucasalvcoutinho.blacksmith) or search for "Blacksmith" in the Extensions view (`Ctrl+Shift+X`).
 
 ## Supported Profilers
 
