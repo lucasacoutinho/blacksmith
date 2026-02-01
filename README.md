@@ -22,6 +22,8 @@ Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/item
 - **Call Graph**: Interactive SVG graph with pan/zoom, click to focus on function subtrees
 - **Caller Map**: Treemap visualization showing cost distribution across functions
 - **Flame Graph**: Canvas visualization with zoom, hover tooltips, and heat-map coloring
+- **Line View**: Inline annotations in the editor showing function costs directly on source code with heat-map backgrounds
+- **Hot Path Overlay**: Highlights the hottest call chain from the most expensive function
 - **Multi-metric support**: Switch between different cost metrics (Time, Memory, Instructions, etc.)
 - **Profile caching**: Parsed profiles are cached for fast reopening
 
@@ -38,7 +40,24 @@ The extension automatically opens files matching `*.callgrind`, `*.cachegrind`, 
 | Command | Description |
 |---------|-------------|
 | `Blacksmith: Open Profiling File` | Open a file picker to select a profile |
+| `Blacksmith: Toggle Line View` | Show/hide inline cost annotations in the editor |
+| `Blacksmith: Toggle Hot Path Overlay` | Show/hide hot path highlighting |
 | `Blacksmith: Clear Profile Cache` | Clear all cached parsed profiles |
+
+### Line View
+
+When a profile is loaded, the Line View feature displays performance annotations directly in your source code:
+
+- **Inline Labels**: Shows `selfCost/totalCost (percentage%) | calls` at function definitions
+- **Heat-map Background**: Lines are tinted based on relative cost (darker = more expensive)
+- **Overview Ruler**: Quick visual scan via the right-side minimap
+- **Hot Path**: Optional overlay highlighting the most expensive call chain
+
+To use Line View:
+1. Load a profile file
+2. Open any source file referenced in the profile
+3. Use `Blacksmith: Toggle Line View` to enable/disable annotations
+4. Use `Blacksmith: Toggle Hot Path Overlay` to see the hottest execution path
 
 ## Generating Profile Data
 

@@ -61,7 +61,9 @@ export type ExtensionMessage =
 export type WebviewMessage =
   | { readonly type: 'ready' }
   | { readonly type: 'openFile'; readonly path: string; readonly line: number }
-  | { readonly type: 'requestData' };
+  | { readonly type: 'requestData' }
+  | { readonly type: 'setMetricIndex'; readonly index: number }
+  | { readonly type: 'selectFunction'; readonly id: number | null };
 
 export interface SerializedProfileData {
   readonly functions: ReadonlyArray<readonly [number, FunctionNode]>;

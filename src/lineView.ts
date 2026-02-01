@@ -28,10 +28,13 @@ export class LineViewDecorations implements vscode.Disposable {
   private readonly overviewDecorations: readonly vscode.TextEditorDecorationType[];
   private readonly hotPathDecoration: vscode.TextEditorDecorationType;
   private enabled = true;
+  private hotPathEnabled = true;
+  private hotPathStartId: FunctionId | null = null;
   private normalizedFiles = new Map<string, string>();
   private hotPathCache: {
     data: ProfileData;
     metricIndex: number;
+    startId: FunctionId | null;
     ids: ReadonlySet<FunctionId>;
   } | null = null;
 
@@ -81,6 +84,19 @@ export class LineViewDecorations implements vscode.Disposable {
     this.enabled = !this.enabled;
     this.refresh();
     return this.enabled;
+  }
+
+  toggleHotPath(): boolean {
+    this.hotPathEnabled = !this.hotPathEnabled;
+    this.refresh();
+    return this.hotPathEnabled;
+  }
+
+  setHotPathStartId(id: FunctionId | null): void {
+    if (this.hotPathStartId === id) return;
+    this.hotPathStartId = id;
+    this.hotPathCache = null;
+    this.refresh();
   }
 
   updateProfile(): void {
@@ -153,7 +169,9 @@ export class LineViewDecorations implements vscode.Disposable {
       selfCost: number;
     }> = [];
 
-    const hotPathIds = this.getHotPathIds(data, metricIndex);
+    const hotPathIds = this.hotPathEnabled
+      ? this.getHotPathIds(data, metricIndex, this.hotPathStartId)
+      : new Set<FunctionId>();
 
     let maxCost = 0;
     for (const [line, fn] of lineMap.entries()) {
@@ -230,8 +248,16 @@ export class LineViewDecorations implements vscode.Disposable {
     editor.setDecorations(this.hotPathDecoration, hotPathOptions);
   }
 
-  private getHotPathIds(data: ProfileData, metricIndex: number): ReadonlySet<FunctionId> {
-    if (this.hotPathCache?.data === data && this.hotPathCache.metricIndex === metricIndex) {
+  private getHotPathIds(
+    data: ProfileData,
+    metricIndex: number,
+    startId: FunctionId | null
+  ): ReadonlySet<FunctionId> {
+    if (
+      this.hotPathCache?.data === data
+      && this.hotPathCache.metricIndex === metricIndex
+      && this.hotPathCache.startId === startId
+    ) {
       return this.hotPathCache.ids;
     }
 
@@ -243,23 +269,34 @@ export class LineViewDecorations implements vscode.Disposable {
       edgesByCaller.set(edge.callerId, list);
     }
 
-    let startId: FunctionId | null = null;
-    let maxCost = -1;
-    for (const stats of data.stats.values()) {
-      const cost = stats.totalCosts?.[metricIndex] ?? stats.totalCost;
-      if (cost > maxCost) {
-        maxCost = cost;
-        startId = stats.id;
+    let resolvedStartId = startId;
+    if (resolvedStartId !== null && !data.stats.has(resolvedStartId)) {
+      resolvedStartId = null;
+    }
+
+    if (resolvedStartId === null) {
+      let maxCost = -1;
+      for (const stats of data.stats.values()) {
+        const cost = stats.totalCosts?.[metricIndex] ?? stats.totalCost;
+        if (cost > maxCost) {
+          maxCost = cost;
+          resolvedStartId = stats.id;
+        }
       }
     }
 
     const ids = new Set<FunctionId>();
-    if (startId === null) {
-      this.hotPathCache = { data, metricIndex, ids };
+    if (resolvedStartId === null) {
+      this.hotPathCache = {
+        data,
+        metricIndex,
+        startId: resolvedStartId,
+        ids,
+      };
       return ids;
     }
 
-    let current: FunctionId | null = startId;
+    let current: FunctionId | null = resolvedStartId;
     while (current && !ids.has(current)) {
       ids.add(current);
       const outgoing = edgesByCaller.get(current);
@@ -271,7 +308,12 @@ export class LineViewDecorations implements vscode.Disposable {
       current = best.calleeId;
     }
 
-    this.hotPathCache = { data, metricIndex, ids };
+    this.hotPathCache = {
+      data,
+      metricIndex,
+      startId: resolvedStartId,
+      ids,
+    };
     return ids;
   }
 

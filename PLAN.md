@@ -29,8 +29,10 @@ Add a blame-style line view in the editor that shows hot paths/costs directly on
      - `Blacksmith: Toggle Hot Path Overlay`
    - Update `package.json` contributions and quick docs.
 
-5. **Docs**
-   - Document the feature and shortcuts in `README.md`.
+5. [x] **Documentation**
+   - [x] Add "Line View" section to README.md explaining the feature
+   - [x] Document keyboard shortcuts (Toggle Line View, Toggle Hot Path)
+   - [x] Add usage examples
 
 ## Phase 2: True Per-Line / Call-Site Heatmaps (parser work)
 1. Extend OCaml parser to emit per-line costs and call-site line numbers.
