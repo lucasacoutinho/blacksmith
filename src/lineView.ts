@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import path from 'path';
 import { ProfileContext } from './profileContext';
-import type { FunctionStats } from './types';
+import type { FunctionId, FunctionStats, ProfileData } from './types';
 
 const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 
@@ -26,8 +26,14 @@ export class LineViewDecorations implements vscode.Disposable {
   private readonly inlineDecoration: vscode.TextEditorDecorationType;
   private readonly heatDecorations: readonly vscode.TextEditorDecorationType[];
   private readonly overviewDecorations: readonly vscode.TextEditorDecorationType[];
+  private readonly hotPathDecoration: vscode.TextEditorDecorationType;
   private enabled = true;
   private normalizedFiles = new Map<string, string>();
+  private hotPathCache: {
+    data: ProfileData;
+    metricIndex: number;
+    ids: ReadonlySet<FunctionId>;
+  } | null = null;
 
   constructor(private readonly profileContext: ProfileContext) {
     this.inlineDecoration = vscode.window.createTextEditorDecorationType({
@@ -53,6 +59,11 @@ export class LineViewDecorations implements vscode.Disposable {
         isWholeLine: true,
       });
     });
+
+    this.hotPathDecoration = vscode.window.createTextEditorDecorationType({
+      isWholeLine: true,
+      backgroundColor: 'rgba(255, 178, 64, 0.28)',
+    });
   }
 
   dispose(): void {
@@ -63,6 +74,7 @@ export class LineViewDecorations implements vscode.Disposable {
     for (const decoration of this.overviewDecorations) {
       decoration.dispose();
     }
+    this.hotPathDecoration.dispose();
   }
 
   toggle(): boolean {
@@ -74,6 +86,7 @@ export class LineViewDecorations implements vscode.Disposable {
   updateProfile(): void {
     const indices = this.profileContext.indices;
     this.normalizedFiles = new Map();
+    this.hotPathCache = null;
     if (indices) {
       for (const key of indices.functionsByFile.keys()) {
         const normalized = normalizePath(key);
@@ -107,6 +120,7 @@ export class LineViewDecorations implements vscode.Disposable {
     for (const decoration of this.overviewDecorations) {
       editor.setDecorations(decoration, []);
     }
+    editor.setDecorations(this.hotPathDecoration, []);
   }
 
   private applyToEditor(editor: vscode.TextEditor): void {
@@ -117,7 +131,7 @@ export class LineViewDecorations implements vscode.Disposable {
       return;
     }
 
-    const fileKey = this.resolveFileKey(editor.document.uri.fsPath, indices.functionsByFile.keys());
+    const fileKey = this.resolveFileKey(editor.document.uri.fsPath, Array.from(indices.functionsByFile.keys()));
     if (!fileKey) {
       this.clearEditor(editor);
       return;
@@ -138,6 +152,8 @@ export class LineViewDecorations implements vscode.Disposable {
       totalCost: number;
       selfCost: number;
     }> = [];
+
+    const hotPathIds = this.getHotPathIds(data, metricIndex);
 
     let maxCost = 0;
     for (const [line, fn] of lineMap.entries()) {
@@ -163,6 +179,7 @@ export class LineViewDecorations implements vscode.Disposable {
       { length: HEAT_BUCKETS },
       () => []
     );
+    const hotPathOptions: vscode.DecorationOptions[] = [];
 
     for (const entry of entries) {
       const line = editor.document.lineAt(entry.lineIndex);
@@ -188,6 +205,19 @@ export class LineViewDecorations implements vscode.Disposable {
       overviewOptions[bucket].push({
         range: line.range,
       });
+
+      if (hotPathIds.has(entry.stats.id)) {
+        hotPathOptions.push({
+          range: line.range,
+          renderOptions: {
+            after: {
+              contentText: ' HOT',
+              color: new vscode.ThemeColor('editorWarning.foreground'),
+              margin: '0 0 0 0.5em',
+            },
+          },
+        });
+      }
     }
 
     editor.setDecorations(this.inlineDecoration, inlineOptions);
@@ -197,9 +227,55 @@ export class LineViewDecorations implements vscode.Disposable {
     for (const [index, decoration] of this.overviewDecorations.entries()) {
       editor.setDecorations(decoration, overviewOptions[index]);
     }
+    editor.setDecorations(this.hotPathDecoration, hotPathOptions);
   }
 
-  private resolveFileKey(filePath: string, candidates: IterableIterator<string>): string | null {
+  private getHotPathIds(data: ProfileData, metricIndex: number): ReadonlySet<FunctionId> {
+    if (this.hotPathCache?.data === data && this.hotPathCache.metricIndex === metricIndex) {
+      return this.hotPathCache.ids;
+    }
+
+    const edgesByCaller = new Map<FunctionId, { calleeId: FunctionId; cost: number }[]>();
+    for (const edge of data.edges) {
+      const cost = edge.inclusiveCosts?.[metricIndex] ?? edge.inclusive;
+      const list = edgesByCaller.get(edge.callerId) ?? [];
+      list.push({ calleeId: edge.calleeId, cost });
+      edgesByCaller.set(edge.callerId, list);
+    }
+
+    let startId: FunctionId | null = null;
+    let maxCost = -1;
+    for (const stats of data.stats.values()) {
+      const cost = stats.totalCosts?.[metricIndex] ?? stats.totalCost;
+      if (cost > maxCost) {
+        maxCost = cost;
+        startId = stats.id;
+      }
+    }
+
+    const ids = new Set<FunctionId>();
+    if (startId === null) {
+      this.hotPathCache = { data, metricIndex, ids };
+      return ids;
+    }
+
+    let current: FunctionId | null = startId;
+    while (current && !ids.has(current)) {
+      ids.add(current);
+      const outgoing = edgesByCaller.get(current);
+      if (!outgoing || outgoing.length === 0) break;
+      let best = outgoing[0];
+      for (const edge of outgoing) {
+        if (edge.cost > best.cost) best = edge;
+      }
+      current = best.calleeId;
+    }
+
+    this.hotPathCache = { data, metricIndex, ids };
+    return ids;
+  }
+
+  private resolveFileKey(filePath: string, candidates: Iterable<string>): string | null {
     if (this.normalizedFiles.size === 0) return null;
     const normalized = normalizePath(filePath);
     const direct = this.normalizedFiles.get(normalized);

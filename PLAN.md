@@ -17,7 +17,7 @@ Add a blame-style line view in the editor that shows hot paths/costs directly on
    - Apply decorations to visible editors only when a profile is loaded.
    - Provide toggle command to enable/disable.
 
-3. **Hot Path overlay**
+3. [x] **Hot Path overlay**
    - Compute a “hottest path” chain from call graph edges (greedy by total cost).
    - Add distinct decoration for hot-path functions (e.g., brighter background + label).
    - Optional: focus hot path from the selected function in the webview.
