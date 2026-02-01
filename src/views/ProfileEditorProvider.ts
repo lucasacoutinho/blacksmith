@@ -5,6 +5,7 @@ import type { ExtensionMessage, WebviewMessage, ParseProgress } from '../types';
 import { deserializeProfileData, serializeProfileData } from '../types';
 import { ProfileCache } from '../cache';
 import { ProfileContext } from '../profileContext';
+import { LineViewDecorations } from '../lineView';
 
 export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvider {
   public static readonly viewType = 'blacksmith.profile';
@@ -12,16 +13,18 @@ export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvide
   private readonly _extensionUri: vscode.Uri;
   private readonly _cache: ProfileCache;
   private readonly _profileContext: ProfileContext;
+  private readonly _lineView: LineViewDecorations;
 
   constructor(context: vscode.ExtensionContext, cache: ProfileCache) {
     this._extensionUri = context.extensionUri;
     this._cache = cache;
     this._profileContext = new ProfileContext();
+    this._lineView = new LineViewDecorations(this._profileContext);
   }
 
   public static register(context: vscode.ExtensionContext, cache: ProfileCache): vscode.Disposable {
     const provider = new ProfileEditorProvider(context, cache);
-    return vscode.window.registerCustomEditorProvider(
+    const editorRegistration = vscode.window.registerCustomEditorProvider(
       ProfileEditorProvider.viewType,
       provider,
       {
@@ -31,6 +34,9 @@ export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvide
         supportsMultipleEditorsPerDocument: false,
       }
     );
+
+    const lineViewDisposables = provider._registerLineView();
+    return vscode.Disposable.from(editorRegistration, ...lineViewDisposables);
   }
 
   async openCustomDocument(
@@ -78,6 +84,7 @@ export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvide
       const cached = await this._cache.get(filePath);
       if (cached) {
         this._profileContext.setProfileData(deserializeProfileData(cached));
+        this._lineView.updateProfile();
         this._postMessage(webview, { type: 'data', data: cached });
         return;
       }
@@ -87,6 +94,7 @@ export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvide
       });
 
       this._profileContext.setProfileData(data);
+      this._lineView.updateProfile();
       const serialized = serializeProfileData(data);
       await this._cache.set(filePath, serialized);
 
@@ -100,6 +108,20 @@ export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvide
 
   private _postMessage(webview: vscode.Webview, message: ExtensionMessage): void {
     webview.postMessage(message);
+  }
+
+  private _registerLineView(): vscode.Disposable[] {
+    return [
+      this._lineView,
+      vscode.window.onDidChangeVisibleTextEditors(() => this._lineView.refresh()),
+      vscode.window.onDidChangeActiveTextEditor(() => this._lineView.refresh()),
+      vscode.workspace.onDidCloseTextDocument(() => this._lineView.refresh()),
+      vscode.commands.registerCommand('blacksmith.toggleLineView', () => {
+        const enabled = this._lineView.toggle();
+        const status = enabled ? 'enabled' : 'disabled';
+        vscode.window.showInformationMessage(`Blacksmith: Line view ${status}`);
+      }),
+    ];
   }
 
   private async _openFile(path: string, line: number): Promise<void> {

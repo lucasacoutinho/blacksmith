@@ -41,6 +41,11 @@
         "command": "blacksmith.clearCache",
         "title": "Clear Profile Cache",
         "category": "Blacksmith"
+      },
+      {
+        "command": "blacksmith.toggleLineView",
+        "title": "Toggle Line View",
+        "category": "Blacksmith"
       }
     ],
     "languages": [

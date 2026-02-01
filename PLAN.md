@@ -9,7 +9,7 @@ Add a blame-style line view in the editor that shows hot paths/costs directly on
    - Build indices: `file -> [functions]`, `line -> function`, `functionId -> stats`.
    - Track active metric index (default 0), optionally sync from webview.
 
-2. **Line View decorations**
+2. [x] **Line View decorations**
    - Create `TextEditorDecorationType` instances:
      - Inline blame-like text (self/total cost, % total, calls).
      - Background heat color for the line.
