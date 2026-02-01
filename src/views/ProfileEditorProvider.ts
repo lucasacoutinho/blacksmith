@@ -2,18 +2,21 @@ import * as vscode from 'vscode';
 import { pipe, Match } from 'effect';
 import { parseCallgrindFile } from '../parser';
 import type { ExtensionMessage, WebviewMessage, ParseProgress } from '../types';
-import { serializeProfileData } from '../types';
+import { deserializeProfileData, serializeProfileData } from '../types';
 import { ProfileCache } from '../cache';
+import { ProfileContext } from '../profileContext';
 
 export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvider {
   public static readonly viewType = 'blacksmith.profile';
 
   private readonly _extensionUri: vscode.Uri;
   private readonly _cache: ProfileCache;
+  private readonly _profileContext: ProfileContext;
 
   constructor(context: vscode.ExtensionContext, cache: ProfileCache) {
     this._extensionUri = context.extensionUri;
     this._cache = cache;
+    this._profileContext = new ProfileContext();
   }
 
   public static register(context: vscode.ExtensionContext, cache: ProfileCache): vscode.Disposable {
@@ -74,6 +77,7 @@ export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvide
     try {
       const cached = await this._cache.get(filePath);
       if (cached) {
+        this._profileContext.setProfileData(deserializeProfileData(cached));
         this._postMessage(webview, { type: 'data', data: cached });
         return;
       }
@@ -82,6 +86,7 @@ export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvide
         this._postMessage(webview, { type: 'progress', progress });
       });
 
+      this._profileContext.setProfileData(data);
       const serialized = serializeProfileData(data);
       await this._cache.set(filePath, serialized);
 
