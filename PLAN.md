@@ -22,7 +22,7 @@ Add a blame-style line view in the editor that shows hot paths/costs directly on
    - Add distinct decoration for hot-path functions (e.g., brighter background + label).
    - Optional: focus hot path from the selected function in the webview.
 
-4. **Messaging + commands**
+4. [x] **Messaging + commands**
    - Add message type to sync selected metric and selected function (if desired).
    - Commands:
      - `Blacksmith: Toggle Line View`

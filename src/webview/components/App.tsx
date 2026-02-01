@@ -99,6 +99,8 @@ export const App = memo(function App() {
   const setProgress = useProfileStore((s) => s.setProgress);
   const setData = useProfileStore((s) => s.setData);
   const setError = useProfileStore((s) => s.setError);
+  const selectedMetricIndex = useProfileStore((s) => s.selectedMetricIndex);
+  const selectedFunctionId = useProfileStore((s) => s.selectedFunctionId);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent<ExtensionMessage>) => {
@@ -116,6 +118,14 @@ export const App = memo(function App() {
     vscode.postMessage({ type: 'ready' });
     return () => window.removeEventListener('message', onMessage);
   }, [setLoading, setProgress, setData, setError]);
+
+  useEffect(() => {
+    vscode.postMessage({ type: 'setMetricIndex', index: selectedMetricIndex });
+  }, [selectedMetricIndex]);
+
+  useEffect(() => {
+    vscode.postMessage({ type: 'selectFunction', id: selectedFunctionId });
+  }, [selectedFunctionId]);
 
   return pipe(
     Match.value(profile),

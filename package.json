@@ -46,6 +46,11 @@
         "command": "blacksmith.toggleLineView",
         "title": "Toggle Line View",
         "category": "Blacksmith"
+      },
+      {
+        "command": "blacksmith.toggleHotPathOverlay",
+        "title": "Toggle Hot Path Overlay",
+        "category": "Blacksmith"
       }
     ],
     "languages": [

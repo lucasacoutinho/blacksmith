@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { pipe, Match } from 'effect';
 import { parseCallgrindFile } from '../parser';
 import type { ExtensionMessage, WebviewMessage, ParseProgress } from '../types';
-import { deserializeProfileData, serializeProfileData } from '../types';
+import { deserializeProfileData, serializeProfileData, FunctionId } from '../types';
 import { ProfileCache } from '../cache';
 import { ProfileContext } from '../profileContext';
 import { LineViewDecorations } from '../lineView';
@@ -68,6 +68,14 @@ export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvide
         Match.when({ type: 'ready' }, () => this._loadProfile(webviewPanel.webview, filePath, filename)),
         Match.when({ type: 'openFile' }, (m) => this._openFile(m.path, m.line)),
         Match.when({ type: 'requestData' }, () => this._loadProfile(webviewPanel.webview, filePath, filename)),
+        Match.when({ type: 'setMetricIndex' }, (m) => {
+          this._profileContext.setActiveMetricIndex(m.index);
+          this._lineView.refresh();
+        }),
+        Match.when({ type: 'selectFunction' }, (m) => {
+          const id = m.id === null ? null : FunctionId(m.id);
+          this._lineView.setHotPathStartId(id);
+        }),
         Match.exhaustive
       )
     );
@@ -120,6 +128,11 @@ export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvide
         const enabled = this._lineView.toggle();
         const status = enabled ? 'enabled' : 'disabled';
         vscode.window.showInformationMessage(`Blacksmith: Line view ${status}`);
+      }),
+      vscode.commands.registerCommand('blacksmith.toggleHotPathOverlay', () => {
+        const enabled = this._lineView.toggleHotPath();
+        const status = enabled ? 'enabled' : 'disabled';
+        vscode.window.showInformationMessage(`Blacksmith: Hot path overlay ${status}`);
       }),
     ];
   }
