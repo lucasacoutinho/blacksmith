@@ -14,6 +14,7 @@ type state = {
   mutable called_file: string;
   mutable called_function: string;
   mutable pending_call_count: int;
+  mutable pending_call_line: int;
   mutable event_types: string list;
   mutable total_costs: int list;
   file_compression: (int, string) Hashtbl.t;
@@ -34,6 +35,7 @@ let make_state () = {
   called_file = "";
   called_function = "";
   pending_call_count = 0;
+  pending_call_line = 0;
   event_types = ["Time"];
   total_costs = [0];
   file_compression = Hashtbl.create 64;
@@ -92,8 +94,9 @@ let interpret state token line_number =
       state.called_file <- path
   | CalledFunction name ->
       state.called_function <- name
-  | Calls count ->
-      state.pending_call_count <- count
+  | Calls { count; line } ->
+      state.pending_call_count <- count;
+      state.pending_call_line <- line
   | Cost { line; costs } ->
       let num_metrics = List.length state.event_types in
       let padded_costs = pad_costs costs num_metrics in
@@ -104,7 +107,7 @@ let interpret state token line_number =
           caller_id = state.current_function_id;
           callee_id;
           calls = state.pending_call_count;
-          callsite_line = line;
+          callsite_line = if state.pending_call_line > 0 then state.pending_call_line else line;
           inclusive = (match padded_costs with x :: _ -> x | [] -> 0);
           exclusive = 0;
           inclusive_costs = padded_costs;
@@ -112,6 +115,7 @@ let interpret state token line_number =
         let prev_count = try Hashtbl.find state.call_counts callee_id with Not_found -> 0 in
         Hashtbl.replace state.call_counts callee_id (prev_count + state.pending_call_count);
         state.pending_call_count <- 0;
+        state.pending_call_line <- 0;
         state.called_function <- "";
         state.called_file <- ""
       end else begin
