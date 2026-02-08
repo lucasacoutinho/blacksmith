@@ -2,7 +2,7 @@
   "name": "blacksmith",
   "displayName": "Blacksmith",
   "description": "Visualize callgrind/cachegrind profiles with Flat Profile, Call Graph, Caller Map, and Flame Graph views",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "publisher": "lucasalvcoutinho",
   "license": "MIT",
   "repository": {
@@ -51,8 +51,63 @@
         "command": "blacksmith.toggleHotPathOverlay",
         "title": "Toggle Hot Path Overlay",
         "category": "Blacksmith"
+      },
+      {
+        "command": "blacksmith.nextHotspot",
+        "title": "Next Hotspot",
+        "category": "Blacksmith"
+      },
+      {
+        "command": "blacksmith.previousHotspot",
+        "title": "Previous Hotspot",
+        "category": "Blacksmith"
+      },
+      {
+        "command": "blacksmith.listHotspots",
+        "title": "List Hotspots",
+        "category": "Blacksmith"
+      },
+      {
+        "command": "blacksmith.compareProfile",
+        "title": "Compare with Profile...",
+        "category": "Blacksmith"
       }
     ],
+    "keybindings": [
+      {
+        "command": "blacksmith.nextHotspot",
+        "key": "alt+shift+down"
+      },
+      {
+        "command": "blacksmith.previousHotspot",
+        "key": "alt+shift+up"
+      }
+    ],
+    "configuration": {
+      "title": "Blacksmith",
+      "properties": {
+        "blacksmith.hotspotCount": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Number of hotspots to track for navigation."
+        },
+        "blacksmith.hotspotSortBy": {
+          "type": "string",
+          "default": "totalCost",
+          "enum": [
+            "totalCost",
+            "selfCost"
+          ],
+          "enumDescriptions": [
+            "Sort hotspots by total (inclusive) cost",
+            "Sort hotspots by self (exclusive) cost"
+          ],
+          "description": "Which cost metric to sort hotspots by."
+        }
+      }
+    },
     "languages": [
       {
         "id": "callgrind",

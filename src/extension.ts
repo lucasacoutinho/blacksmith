@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { ProfileEditorProvider } from './views/ProfileEditorProvider';
 import { ProfileCache } from './cache';
+import { HotspotNavigator } from './hotspotNavigator';
 
 const FILE_FILTERS: Record<string, string[]> = {
   'Callgrind Files': ['callgrind', 'cachegrind', 'out'],
@@ -35,11 +36,24 @@ const clearCache = (cache: ProfileCache) =>
 
 export const activate = (context: vscode.ExtensionContext): void => {
   const cache = new ProfileCache(context.globalState);
+  const { disposable, provider } = ProfileEditorProvider.register(context, cache);
+
+  const navigator = new HotspotNavigator(
+    provider.profileContext,
+    provider.lineView
+  );
+
+  provider.onHotspotsChanged = () => navigator.updateHotspots();
 
   context.subscriptions.push(
-    ProfileEditorProvider.register(context, cache),
+    disposable,
     openProfile(cache),
-    clearCache(cache)
+    clearCache(cache),
+    navigator,
+    vscode.commands.registerCommand('blacksmith.nextHotspot', () => navigator.next()),
+    vscode.commands.registerCommand('blacksmith.previousHotspot', () => navigator.previous()),
+    vscode.commands.registerCommand('blacksmith.listHotspots', () => navigator.showQuickPick()),
+    vscode.commands.registerCommand('blacksmith.compareProfile', () => provider.compareProfile())
   );
 };
 

@@ -58,7 +58,12 @@ let lex_line line file_map func_map : token =
         let rest = String.sub line 6 (String.length line - 6) in
         let parts = split_on_char ' ' (String.trim rest) in
         let count = try int_of_string (List.hd parts) with _ -> 1 in
-        Calls count
+        let line_no =
+          match parts with
+          | _ :: line_str :: _ -> (try int_of_string line_str with _ -> 0)
+          | _ -> 0
+        in
+        Calls { count; line = line_no }
     | "ob" | "cob" -> Object
     | _ ->
         if line.[0] >= '0' && line.[0] <= '9' then begin

@@ -62,4 +62,17 @@ export class ProfileContext {
   get activeMetricIndex(): MetricIndex {
     return this._activeMetricIndex;
   }
+
+  getTopFunctions(count: number, metricIndex: number, sortBy: 'totalCost' | 'selfCost'): FunctionStats[] {
+    if (!this._data || !this._indices) return [];
+    const allStats = Array.from(this._indices.statsById.values());
+    return allStats
+      .sort((a, b) => {
+        const getCost = (s: FunctionStats) => sortBy === 'selfCost'
+          ? (s.selfCosts?.[metricIndex] ?? s.selfCost)
+          : (s.totalCosts?.[metricIndex] ?? s.totalCost);
+        return getCost(b) - getCost(a);
+      })
+      .slice(0, count);
+  }
 }

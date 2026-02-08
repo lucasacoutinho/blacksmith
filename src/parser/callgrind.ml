@@ -15,6 +15,7 @@ let call_edge_to_js (e : call_edge) : Js.Json.t =
     ("callerId", Js.Json.number (float_of_int e.caller_id));
     ("calleeId", Js.Json.number (float_of_int e.callee_id));
     ("calls", Js.Json.number (float_of_int e.calls));
+    ("callsiteLine", Js.Json.number (float_of_int e.callsite_line));
     ("inclusive", Js.Json.number (float_of_int e.inclusive));
     ("exclusive", Js.Json.number (float_of_int e.exclusive));
     ("inclusiveCosts", Js.Json.array (Array.of_list (List.map (fun x -> Js.Json.number (float_of_int x)) e.inclusive_costs)));
@@ -30,6 +31,12 @@ let function_stats_to_js (s : function_stats) : Js.Json.t =
     ("totalCost", Js.Json.number (float_of_int s.total_cost));
     ("selfCosts", Js.Json.array (Array.of_list (List.map (fun x -> Js.Json.number (float_of_int x)) s.self_costs)));
     ("totalCosts", Js.Json.array (Array.of_list (List.map (fun x -> Js.Json.number (float_of_int x)) s.total_costs)));
+    ("lineCosts", Js.Json.array (Array.of_list (List.map (fun (line, costs) ->
+      Js.Json.object_ (Js.Dict.fromList [
+        ("line", Js.Json.number (float_of_int line));
+        ("costs", Js.Json.array (Array.of_list (List.map (fun x -> Js.Json.number (float_of_int x)) costs)))
+      ])
+    ) s.line_costs)));
     ("calls", Js.Json.number (float_of_int s.calls));
     ("callers", Js.Json.array (Array.of_list (List.map (fun x -> Js.Json.number (float_of_int x)) s.callers)));
     ("callees", Js.Json.array (Array.of_list (List.map (fun x -> Js.Json.number (float_of_int x)) s.callees)));

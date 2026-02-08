@@ -17,9 +17,15 @@ export interface CallEdge {
   readonly callerId: FunctionId;
   readonly calleeId: FunctionId;
   readonly calls: number;
+  readonly callsiteLine: number;
   readonly inclusive: number;
   readonly exclusive: number;
   readonly inclusiveCosts: readonly number[];
+}
+
+export interface LineCost {
+  readonly line: number;
+  readonly costs: readonly number[];
 }
 
 export interface FunctionStats {
@@ -31,6 +37,7 @@ export interface FunctionStats {
   readonly totalCost: number;
   readonly selfCosts: readonly number[];
   readonly totalCosts: readonly number[];
+  readonly lineCosts: readonly LineCost[];
   readonly calls: number;
   readonly callers: readonly FunctionId[];
   readonly callees: readonly FunctionId[];
@@ -52,18 +59,50 @@ export interface ParseProgress {
   readonly currentFunction?: string;
 }
 
+export interface DiffEntry {
+  readonly key: string;
+  readonly name: string;
+  readonly file: string;
+  readonly line: number;
+  readonly selfCostA: number;
+  readonly selfCostB: number;
+  readonly totalCostA: number;
+  readonly totalCostB: number;
+  readonly selfDelta: number;
+  readonly totalDelta: number;
+  readonly selfDeltaPct: number;
+  readonly totalDeltaPct: number;
+  readonly callsA: number;
+  readonly callsB: number;
+  readonly status: 'unchanged' | 'improved' | 'regressed' | 'added' | 'removed';
+}
+
+export interface DiffResult {
+  readonly entries: readonly DiffEntry[];
+  readonly totalCostA: number;
+  readonly totalCostB: number;
+  readonly totalDelta: number;
+  readonly totalDeltaPct: number;
+  readonly metricName: string;
+  readonly filenameA: string;
+  readonly filenameB: string;
+}
+
 export type ExtensionMessage =
   | { readonly type: 'loading'; readonly filename: string }
   | { readonly type: 'progress'; readonly progress: ParseProgress }
   | { readonly type: 'data'; readonly data: SerializedProfileData }
-  | { readonly type: 'error'; readonly message: string };
+  | { readonly type: 'error'; readonly message: string }
+  | { readonly type: 'diffData'; readonly diff: DiffResult };
 
 export type WebviewMessage =
   | { readonly type: 'ready' }
   | { readonly type: 'openFile'; readonly path: string; readonly line: number }
   | { readonly type: 'requestData' }
   | { readonly type: 'setMetricIndex'; readonly index: number }
-  | { readonly type: 'selectFunction'; readonly id: number | null };
+  | { readonly type: 'selectFunction'; readonly id: number | null }
+  | { readonly type: 'clearDiff' }
+  | { readonly type: 'export'; readonly format: 'csv' | 'json'; readonly content: string };
 
 export interface SerializedProfileData {
   readonly functions: ReadonlyArray<readonly [number, FunctionNode]>;

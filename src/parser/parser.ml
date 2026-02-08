@@ -5,6 +5,7 @@ type state = {
   mutable function_by_name: (string, int) Hashtbl.t;
   mutable edges: call_edge list;
   mutable self_costs: (int, int list) Hashtbl.t;
+  mutable line_costs: (int, (int, int list) Hashtbl.t) Hashtbl.t;
   mutable call_counts: (int, int) Hashtbl.t;
   mutable next_id: int;
   mutable current_file: string;
@@ -24,6 +25,7 @@ let make_state () = {
   function_by_name = Hashtbl.create 256;
   edges = [];
   self_costs = Hashtbl.create 256;
+  line_costs = Hashtbl.create 256;
   call_counts = Hashtbl.create 256;
   next_id = 1;
   current_file = "";
@@ -102,6 +104,7 @@ let interpret state token line_number =
           caller_id = state.current_function_id;
           callee_id;
           calls = state.pending_call_count;
+          callsite_line = line;
           inclusive = (match padded_costs with x :: _ -> x | [] -> 0);
           exclusive = 0;
           inclusive_costs = padded_costs;
@@ -116,6 +119,16 @@ let interpret state token line_number =
           with Not_found -> List.init num_metrics (fun _ -> 0) in
         let updated = List.map2 (+) current padded_costs in
         Hashtbl.replace state.self_costs state.current_function_id updated;
+        let line_costs = try Hashtbl.find state.line_costs state.current_function_id
+          with Not_found ->
+            let tbl = Hashtbl.create 32 in
+            Hashtbl.add state.line_costs state.current_function_id tbl;
+            tbl
+        in
+        let existing = try Hashtbl.find line_costs line
+          with Not_found -> List.init num_metrics (fun _ -> 0) in
+        let updated_line_costs = List.map2 (+) existing padded_costs in
+        Hashtbl.replace line_costs line updated_line_costs;
         state.total_costs <- List.map2 (+) state.total_costs padded_costs;
         let fn = Hashtbl.find state.functions state.current_function_id in
         if fn.line = 0 || fn.line > line then
@@ -141,6 +154,13 @@ let build_stats state : (int * function_stats) list =
     ) state.edges in
     let self_costs = try Hashtbl.find state.self_costs id
       with Not_found -> List.init num_metrics (fun _ -> 0) in
+    let line_costs =
+      let lookup = try Hashtbl.find state.line_costs id
+        with Not_found -> Hashtbl.create 0
+      in
+      Hashtbl.fold (fun line costs acc -> (line, costs) :: acc) lookup []
+      |> List.sort (fun (a, _) (b, _) -> compare a b)
+    in
     let calls = max 1 (try Hashtbl.find state.call_counts id with Not_found -> 1) in
     Hashtbl.add stats id ({
       id;
@@ -151,6 +171,7 @@ let build_stats state : (int * function_stats) list =
       total_cost = 0;
       self_costs;
       total_costs = List.init num_metrics (fun _ -> 0);
+      line_costs;
       calls;
       callers = List.sort_uniq compare callers;
       callees = List.sort_uniq compare callees;
@@ -163,7 +184,8 @@ let build_stats state : (int * function_stats) list =
   let compute_inclusive id =
     let s : function_stats = try Hashtbl.find stats id with Not_found ->
       { id; name = ""; file = ""; line = 0; self_cost = 0; total_cost = 0;
-        self_costs = []; total_costs = []; calls = 0; callers = []; callees = [] }
+        self_costs = []; total_costs = []; line_costs = [];
+        calls = 0; callers = []; callees = [] }
     in
     if s.total_cost > 0 then s.total_costs
     else if Hashtbl.mem in_stack id then s.self_costs

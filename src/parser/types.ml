@@ -7,7 +7,7 @@ type token =
   | Function of string
   | CalledFile of string
   | CalledFunction of string
-  | Calls of int
+  | Calls of { count: int; line: int }
   | Object
   | Cost of { line: int; costs: int list }
 
@@ -22,6 +22,7 @@ type call_edge = {
   caller_id: int;
   callee_id: int;
   calls: int;
+  callsite_line: int;
   inclusive: int;
   exclusive: int;
   inclusive_costs: int list;
@@ -36,6 +37,7 @@ type function_stats = {
   total_cost: int;
   self_costs: int list;
   total_costs: int list;
+  line_costs: (int * int list) list;
   calls: int;
   callers: int list;
   callees: int list;

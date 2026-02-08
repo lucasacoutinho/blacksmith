@@ -1,5 +1,0 @@
-2026-02-01 - Implemented extension-side profile context to cache parsed profile data and build indices for functions by file/line and stats by id.
-2026-02-01 - Added line view decorations with inline stats, heatmap backgrounds, overview ruler markers, and a toggle command.
-2026-02-01 - Implemented hot path overlay with greedy call graph chain highlighting in the line view.
-2026-02-01 - Added webview messaging to sync metric/selection with line view and registered hot path overlay toggle command.
-2026-02-01 - Completed documentation: Added Line View and Hot Path sections to README.md with feature descriptions and keyboard shortcuts

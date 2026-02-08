@@ -1,10 +1,11 @@
 import { useMemo, useCallback, useState, useRef, useEffect, memo, type MouseEvent, type WheelEvent } from 'react';
 import { pipe, Array as A, Option } from 'effect';
 import { useProfileStore, useFunctionCost } from '../store';
-import { useResizeObserver, useStats, useEdges, useStatsMap, useTotalCost } from '../hooks';
+import { useResizeObserver, useStatsData, useEdges, useEdgeIndex, useTotalCost } from '../hooks';
 import { formatCost, calculatePercent, truncateName, getCostColor } from '../utils';
-import { LAYOUT } from '../constants';
+import { LAYOUT, LIMITS } from '../constants';
 import type { FunctionStats, CallEdge } from '../../types';
+import type { EdgeIndex } from '../utils/edgeIndex';
 
 interface GraphNode {
   readonly id: number;
@@ -32,15 +33,20 @@ const getVscode = (): Option.Option<{ postMessage: (m: unknown) => void }> =>
 const nodeWidth = LAYOUT.NODE_WIDTH + 20;
 const nodeHeight = LAYOUT.NODE_HEIGHT + 60;
 
-const findDescendants = (rootId: number, edges: readonly CallEdge[]): Set<number> => {
+const findDescendants = (rootId: number, edgeIndex: EdgeIndex): Set<number> => {
   const result = new Set<number>();
-  const queue = [rootId];
+  const queue = [{ id: rootId, depth: 0 }];
   while (queue.length > 0) {
-    const id = queue.shift()!;
+    const { id, depth } = queue.shift()!;
     if (result.has(id)) continue;
+    if (result.size >= LIMITS.MAX_GRAPH_NODES) break;
+    if (depth > LIMITS.MAX_GRAPH_DEPTH) continue;
     result.add(id);
-    for (const e of edges) {
-      if (e.callerId === id && !result.has(e.calleeId)) queue.push(e.calleeId);
+    const children = edgeIndex.get(id);
+    if (children) {
+      for (const e of children) {
+        if (!result.has(e.calleeId)) queue.push({ id: e.calleeId, depth: depth + 1 });
+      }
     }
   }
   return result;
@@ -49,12 +55,13 @@ const findDescendants = (rootId: number, edges: readonly CallEdge[]): Set<number
 const buildGraph = (
   stats: readonly FunctionStats[],
   edges: readonly CallEdge[],
+  edgeIndex: EdgeIndex,
   statsMap: ReadonlyMap<number, FunctionStats>,
   selectedId: number | null,
   getTotalCost: (fn: FunctionStats) => number
 ) => {
   const functionsToShow = selectedId !== null
-    ? findDescendants(selectedId, edges)
+    ? findDescendants(selectedId, edgeIndex)
     : new Set(stats.map((s) => s.id));
 
   const hasCallers = new Set<number>();
@@ -83,9 +90,12 @@ const buildGraph = (
       if (visited.has(id)) continue;
       visited.add(id);
       depths.set(id, Math.max(depths.get(id) ?? 0, depth));
-      for (const e of edges) {
-        if (e.callerId === id && functionsToShow.has(e.calleeId) && !visited.has(e.calleeId)) {
-          queue.push({ id: e.calleeId, depth: depth + 1 });
+      const children = edgeIndex.get(id);
+      if (children) {
+        for (const e of children) {
+          if (functionsToShow.has(e.calleeId) && !visited.has(e.calleeId)) {
+            queue.push({ id: e.calleeId, depth: depth + 1 });
+          }
         }
       }
     }
@@ -145,14 +155,14 @@ export const CallGraph = memo(function CallGraph() {
   const selectFunction = useProfileStore((s) => s.selectFunction);
   const goBack = useProfileStore((s) => s.goBack);
   const clearSelection = useProfileStore((s) => s.clearSelection);
-  const stats = useStats();
+  const { stats, statsMap } = useStatsData();
   const edges = useEdges();
-  const statsMap = useStatsMap();
+  const edgeIndex = useEdgeIndex();
   const { getTotalCost, getEdgeCost } = useFunctionCost();
 
   const { nodes, graphEdges, graphWidth, graphHeight } = useMemo(
-    () => buildGraph(stats, edges, statsMap, selectedId, getTotalCost),
-    [stats, edges, statsMap, selectedId, getTotalCost]
+    () => buildGraph(stats, edges, edgeIndex, statsMap, selectedId, getTotalCost),
+    [stats, edges, edgeIndex, statsMap, selectedId, getTotalCost]
   );
 
   useEffect(() => {
@@ -223,6 +233,8 @@ export const CallGraph = memo(function CallGraph() {
         className="callgraph-svg"
         width={dimensions.width}
         height={dimensions.height}
+        role="img"
+        aria-label={`Call graph visualization with ${nodes.length} functions`}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onMouseUp={onMouseUp}
@@ -256,6 +268,7 @@ export const CallGraph = memo(function CallGraph() {
                 onClick={(e) => { e.stopPropagation(); isSelected ? onOpenFile(node.fn.file, node.fn.line) : selectFunction(node.id); }}
                 transform={`translate(${node.x - LAYOUT.NODE_WIDTH / 2}, ${node.y})`}
               >
+                <title>{`${node.fn.name} - ${percent.toFixed(1)}% of total cost`}</title>
                 <rect width={LAYOUT.NODE_WIDTH} height={LAYOUT.NODE_HEIGHT} rx="4" fill={getCostColor(cost, totalCost)} className={`callgraph-node-rect ${isSelected ? 'selected' : ''}`} />
                 <text x={LAYOUT.NODE_WIDTH / 2} y={18} className={`callgraph-node-name ${isSelected ? 'selected' : ''}`}>{truncateName(node.fn.name, 20)}</text>
                 <text x={LAYOUT.NODE_WIDTH / 2} y={35} className="callgraph-node-cost">{percent.toFixed(1)}% • {formatCost(cost)}</text>

@@ -80,6 +80,17 @@ export class LineViewDecorations implements vscode.Disposable {
     this.hotPathDecoration.dispose();
   }
 
+  get isEnabled(): boolean {
+    return this.enabled;
+  }
+
+  enable(): void {
+    if (!this.enabled) {
+      this.enabled = true;
+      this.refresh();
+    }
+  }
+
   toggle(): boolean {
     this.enabled = !this.enabled;
     this.refresh();
@@ -102,7 +113,9 @@ export class LineViewDecorations implements vscode.Disposable {
   updateProfile(): void {
     const indices = this.profileContext.indices;
     this.normalizedFiles = new Map();
-    this.hotPathCache = null;
+    if (this.hotPathCache?.data !== this.profileContext.data) {
+      this.hotPathCache = null;
+    }
     if (indices) {
       for (const key of indices.functionsByFile.keys()) {
         const normalized = normalizePath(key);

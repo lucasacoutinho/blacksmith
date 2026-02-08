@@ -2,7 +2,7 @@ import { useMemo, useState, useCallback, memo, type MouseEvent } from 'react';
 import { pipe, Array as A, Option } from 'effect';
 import { useProfileStore, useFunctionCost } from '../store';
 import { useResizeObserver, useStats, useTotalCost } from '../hooks';
-import { getCostColor } from '../utils';
+import { getCostColor, calculatePercent } from '../utils';
 import { LIMITS } from '../constants';
 import { Tooltip } from './Tooltip';
 
@@ -137,7 +137,7 @@ export const CallerMap = memo(function CallerMap() {
 
   return (
     <div className="callermap-container" ref={containerRef}>
-      <svg className="callermap-svg" width={dimensions.width} height={dimensions.height}>
+      <svg className="callermap-svg" width={dimensions.width} height={dimensions.height} role="img" aria-label={`Caller map treemap visualization with ${rects.length} functions`}>
         {rects.map((rect) => (
           <g
             key={rect.id}
@@ -146,6 +146,7 @@ export const CallerMap = memo(function CallerMap() {
             onMouseMove={(e) => onMouseMove(e, rect)}
             onMouseLeave={onMouseLeave}
           >
+            <title>{`${rect.name} - ${calculatePercent(rect.cost, totalCost).toFixed(1)}% of total cost`}</title>
             <rect
               x={rect.x + 1}
               y={rect.y + 1}

@@ -15,6 +15,8 @@ export const LIMITS = {
   MAX_TREEMAP_ITEMS: 50,
   MIN_FRAME_WIDTH: 0.001,
   TOP_FUNCTIONS_COUNT: 10,
+  MAX_GRAPH_DEPTH: 15,
+  MAX_GRAPH_NODES: 500,
 } as const;
 
 export const COST_THRESHOLDS = {

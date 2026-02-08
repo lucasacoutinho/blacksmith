@@ -1,11 +1,12 @@
 import { useRef, useState, useEffect, useMemo, useCallback, memo, type MouseEvent } from 'react';
 import { pipe, Array as A, Option, Match } from 'effect';
 import { useProfileStore, useFunctionCost } from '../store';
-import { useResizeObserver, useStats, useEdges, useStatsMap, useTotalCost } from '../hooks';
+import { useResizeObserver, useStatsData, useEdges, useEdgeIndex, useTotalCost } from '../hooks';
 import { getCostColor } from '../utils';
 import { LAYOUT, LIMITS } from '../constants';
 import { Tooltip } from './Tooltip';
 import type { FunctionStats, CallEdge } from '../../types';
+import type { EdgeIndex } from '../utils/edgeIndex';
 
 interface FlameFrame {
   readonly id: number;
@@ -40,6 +41,7 @@ const findRoots = (
 const buildFrames = (
   stats: readonly FunctionStats[],
   edges: readonly CallEdge[],
+  edgeIndex: EdgeIndex,
   statsMap: ReadonlyMap<number, FunctionStats>,
   getTotalCost: (fn: FunctionStats) => number,
   getEdgeCost: (edge: CallEdge) => number
@@ -68,22 +70,18 @@ const buildFrames = (
 
     result.push({ id: fnId, name: fn.name, x, width, depth, cost: getTotalCost(fn) });
 
-    const calleeEdges = pipe(
-      edges,
-      A.filter((e) => e.callerId === fnId),
-      (arr) => [...arr].sort((a, b) => getEdgeCost(a) - getEdgeCost(b))
-    );
+    const calleeEdges = edgeIndex.get(fnId);
+    if (!calleeEdges || calleeEdges.length === 0) continue;
 
-    if (calleeEdges.length === 0) continue;
-
-    const totalCalleeCost = calleeEdges.reduce((sum, e) => sum + getEdgeCost(e), 0);
+    const sorted = [...calleeEdges].sort((a, b) => getEdgeCost(a) - getEdgeCost(b));
+    const totalCalleeCost = sorted.reduce((sum, e) => sum + getEdgeCost(e), 0);
     let currentX = x;
 
-    for (const edge of calleeEdges) {
+    for (const edge of sorted) {
       const edgeCost = getEdgeCost(edge);
       const calleeWidth = totalCalleeCost > 0
         ? (edgeCost / totalCalleeCost) * width
-        : width / calleeEdges.length;
+        : width / sorted.length;
 
       if (calleeWidth > LIMITS.MIN_FRAME_WIDTH) {
         stack.push({ fnId: edge.calleeId, x: currentX, width: calleeWidth, depth: depth + 1 });
@@ -166,14 +164,14 @@ export const FlameGraph = memo(function FlameGraph() {
 
   const totalCost = useTotalCost();
   const selectFunction = useProfileStore((s) => s.selectFunction);
-  const stats = useStats();
+  const { stats, statsMap } = useStatsData();
   const edges = useEdges();
-  const statsMap = useStatsMap();
+  const edgeIndex = useEdgeIndex();
   const { getTotalCost, getEdgeCost } = useFunctionCost();
 
   const frames = useMemo(
-    () => buildFrames(stats, edges, statsMap, getTotalCost, getEdgeCost),
-    [stats, edges, statsMap, getTotalCost, getEdgeCost]
+    () => buildFrames(stats, edges, edgeIndex, statsMap, getTotalCost, getEdgeCost),
+    [stats, edges, edgeIndex, statsMap, getTotalCost, getEdgeCost]
   );
 
   const maxDepth = useMemo(
@@ -251,6 +249,8 @@ export const FlameGraph = memo(function FlameGraph() {
         <canvas
           ref={canvasRef}
           className="flamegraph-canvas"
+          role="img"
+          aria-label={`Flame graph visualization with ${frames.length} frames, max depth ${maxDepth + 1}`}
           onMouseMove={onMouseMove}
           onMouseLeave={() => setTooltip(null)}
           onClick={onClick}

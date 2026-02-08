@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
 import { pipe, Match, Option } from 'effect';
-import type { SerializedProfileData, FunctionStats, CallEdge } from '../types';
+import type { SerializedProfileData, FunctionStats, CallEdge, DiffResult } from '../types';
 
-export type TabId = 'flat' | 'callgraph' | 'callermap' | 'flamegraph';
+export type TabId = 'flat' | 'callgraph' | 'callermap' | 'flamegraph' | 'diff';
 export type SortKey = 'name' | 'file' | 'selfCost' | 'totalCost' | 'calls' | 'percent';
 export type SortDir = 'asc' | 'desc';
 
@@ -23,6 +23,7 @@ interface ProfileStore {
   readonly selectedMetricIndex: number;
   readonly selectedFunctionId: number | null;
   readonly callGraphHistory: readonly number[];
+  readonly diff: DiffResult | null;
 
   setLoading: (filename: string) => void;
   setProgress: (progress: number) => void;
@@ -35,6 +36,8 @@ interface ProfileStore {
   selectFunction: (id: number) => void;
   goBack: () => void;
   clearSelection: () => void;
+  setDiff: (diff: DiffResult) => void;
+  clearDiff: () => void;
   getStats: () => readonly FunctionStats[];
   getFilteredStats: () => readonly FunctionStats[];
   getTotalCost: () => number;
@@ -56,6 +59,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
   selectedMetricIndex: 0,
   selectedFunctionId: null,
   callGraphHistory: [],
+  diff: null,
 
   setLoading: (filename) =>
     set({ profile: { _tag: 'Loading', filename, progress: 0 }, filename }),
@@ -107,6 +111,12 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
 
   clearSelection: () =>
     set({ search: '', selectedFunctionId: null }),
+
+  setDiff: (diff) =>
+    set({ diff, activeTab: 'diff' }),
+
+  clearDiff: () =>
+    set({ diff: null, activeTab: 'flat' }),
 
   getStats: () =>
     pipe(

@@ -66,6 +66,18 @@ describe('callgrind parser', () => {
 
       expect(edge).toBeDefined();
       expect(edge!.calls).toBe(10);
+      expect(edge!.callsiteLine).toBeGreaterThan(0);
+    });
+
+    it('tracks per-line costs', async () => {
+      const data = await parseCallgrindFile(fixturePath);
+
+      const mainStats = Array.from(data.stats.values()).find(
+        (s) => s.name === '{main}'
+      );
+
+      expect(mainStats).toBeDefined();
+      expect(mainStats!.lineCosts.length).toBeGreaterThan(0);
     });
 
     it('reports progress during parsing', async () => {

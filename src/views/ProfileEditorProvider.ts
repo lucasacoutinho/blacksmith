@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
 import { pipe, Match } from 'effect';
 import { parseCallgrindFile } from '../parser';
-import type { ExtensionMessage, WebviewMessage, ParseProgress } from '../types';
+import type { ExtensionMessage, WebviewMessage, ParseProgress, DiffResult } from '../types';
 import { deserializeProfileData, serializeProfileData, FunctionId } from '../types';
+import { computeDiff } from '../diff';
 import { ProfileCache } from '../cache';
 import { ProfileContext } from '../profileContext';
 import { LineViewDecorations } from '../lineView';
@@ -14,6 +15,9 @@ export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvide
   private readonly _cache: ProfileCache;
   private readonly _profileContext: ProfileContext;
   private readonly _lineView: LineViewDecorations;
+  private _onHotspotsChanged: (() => void) | null = null;
+  private _activeWebview: vscode.Webview | null = null;
+  private _activeFilename: string = '';
 
   constructor(context: vscode.ExtensionContext, cache: ProfileCache) {
     this._extensionUri = context.extensionUri;
@@ -22,7 +26,19 @@ export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvide
     this._lineView = new LineViewDecorations(this._profileContext);
   }
 
-  public static register(context: vscode.ExtensionContext, cache: ProfileCache): vscode.Disposable {
+  get profileContext(): ProfileContext {
+    return this._profileContext;
+  }
+
+  get lineView(): LineViewDecorations {
+    return this._lineView;
+  }
+
+  set onHotspotsChanged(callback: (() => void) | null) {
+    this._onHotspotsChanged = callback;
+  }
+
+  public static register(context: vscode.ExtensionContext, cache: ProfileCache): { disposable: vscode.Disposable; provider: ProfileEditorProvider } {
     const provider = new ProfileEditorProvider(context, cache);
     const editorRegistration = vscode.window.registerCustomEditorProvider(
       ProfileEditorProvider.viewType,
@@ -36,7 +52,8 @@ export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvide
     );
 
     const lineViewDisposables = provider._registerLineView();
-    return vscode.Disposable.from(editorRegistration, ...lineViewDisposables);
+    const disposable = vscode.Disposable.from(editorRegistration, ...lineViewDisposables);
+    return { disposable, provider };
   }
 
   async openCustomDocument(
@@ -62,6 +79,16 @@ export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvide
     const filePath = document.uri.fsPath;
     const filename = filePath.split('/').pop() || filePath;
 
+    this._activeWebview = webviewPanel.webview;
+    this._activeFilename = filename;
+
+    webviewPanel.onDidDispose(() => {
+      if (this._activeWebview === webviewPanel.webview) {
+        this._activeWebview = null;
+        this._activeFilename = '';
+      }
+    });
+
     webviewPanel.webview.onDidReceiveMessage(async (message: WebviewMessage) =>
       pipe(
         Match.value(message),
@@ -71,14 +98,69 @@ export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvide
         Match.when({ type: 'setMetricIndex' }, (m) => {
           this._profileContext.setActiveMetricIndex(m.index);
           this._lineView.refresh();
+          this._onHotspotsChanged?.();
         }),
         Match.when({ type: 'selectFunction' }, (m) => {
           const id = m.id === null ? null : FunctionId(m.id);
           this._lineView.setHotPathStartId(id);
         }),
+        Match.when({ type: 'clearDiff' }, () => {}),
+        Match.when({ type: 'export' }, (m) => this._handleExport(m.format, m.content)),
         Match.exhaustive
       )
     );
+  }
+
+  async compareProfile(): Promise<void> {
+    if (!this._activeWebview) {
+      vscode.window.showWarningMessage('Blacksmith: Open a profile first before comparing.');
+      return;
+    }
+
+    const profileData = this._profileContext.data;
+    if (!profileData) {
+      vscode.window.showWarningMessage('Blacksmith: No profile data loaded to compare against.');
+      return;
+    }
+
+    const uris = await vscode.window.showOpenDialog({
+      canSelectMany: false,
+      filters: {
+        'Callgrind Files': ['callgrind', 'cachegrind', 'out'],
+        'All Files': ['*'],
+      },
+      title: 'Select Profile to Compare With',
+    });
+
+    if (!uris?.[0]) return;
+
+    const filePathB = uris[0].fsPath;
+    const filenameB = filePathB.split('/').pop() || filePathB;
+
+    try {
+      const dataB = await parseCallgrindFile(filePathB);
+
+      const metricIndex = this._profileContext.activeMetricIndex;
+      const eventTypes = profileData.eventTypes;
+      const metricName = eventTypes[metricIndex] ?? 'Time';
+
+      const statsA = Array.from(profileData.stats.values());
+      const statsB = Array.from(dataB.stats.values());
+
+      const totalCostA = profileData.totalCosts?.[metricIndex] ?? profileData.totalCost;
+      const totalCostB = dataB.totalCosts?.[metricIndex] ?? dataB.totalCost;
+
+      const diff: DiffResult = computeDiff(
+        statsA, statsB, metricIndex, metricName,
+        this._activeFilename, filenameB,
+        totalCostA, totalCostB,
+      );
+
+      this._postMessage(this._activeWebview, { type: 'diffData', diff });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      vscode.window.showErrorMessage(`Failed to parse comparison profile: ${message}`);
+    }
   }
 
   private async _loadProfile(
@@ -93,6 +175,7 @@ export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvide
       if (cached) {
         this._profileContext.setProfileData(deserializeProfileData(cached));
         this._lineView.updateProfile();
+        this._onHotspotsChanged?.();
         this._postMessage(webview, { type: 'data', data: cached });
         return;
       }
@@ -103,6 +186,7 @@ export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvide
 
       this._profileContext.setProfileData(data);
       this._lineView.updateProfile();
+      this._onHotspotsChanged?.();
       const serialized = serializeProfileData(data);
       await this._cache.set(filePath, serialized);
 
@@ -135,6 +219,22 @@ export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvide
         vscode.window.showInformationMessage(`Blacksmith: Hot path overlay ${status}`);
       }),
     ];
+  }
+
+  private async _handleExport(format: 'csv' | 'json', content: string): Promise<void> {
+    const ext = format === 'csv' ? 'csv' : 'json';
+    const uri = await vscode.window.showSaveDialog({
+      defaultUri: vscode.Uri.file(`profile.${ext}`),
+      filters: format === 'csv'
+        ? { 'CSV Files': ['csv'], 'All Files': ['*'] }
+        : { 'JSON Files': ['json'], 'All Files': ['*'] },
+      title: `Export Profile as ${format.toUpperCase()}`,
+    });
+
+    if (uri) {
+      await vscode.workspace.fs.writeFile(uri, Buffer.from(content, 'utf-8'));
+      vscode.window.showInformationMessage(`Blacksmith: Profile exported to ${uri.fsPath}`);
+    }
   }
 
   private async _openFile(path: string, line: number): Promise<void> {
@@ -233,6 +333,14 @@ export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvide
     .tab.active {
       opacity: 1;
       border-bottom-color: var(--vscode-focusBorder);
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
     }
 
     .content {
@@ -692,6 +800,166 @@ export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvide
       display: flex;
       gap: 16px;
       font-size: 11px;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border-width: 0;
+    }
+
+    .virtual-row.focused {
+      outline: 2px solid var(--vscode-focusBorder);
+      outline-offset: -2px;
+    }
+
+    /* Diff Profile styles */
+    .diff-summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--vscode-panel-border);
+      font-size: 12px;
+      background: var(--vscode-editor-inactiveSelectionBackground);
+    }
+
+    .diff-summary-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .diff-clear-btn {
+      padding: 4px 12px;
+      background: var(--vscode-button-secondaryBackground);
+      color: var(--vscode-button-secondaryForeground);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      flex-shrink: 0;
+      margin-left: 12px;
+    }
+
+    .diff-clear-btn:hover {
+      background: var(--vscode-button-secondaryHoverBackground);
+    }
+
+    .diff-header {
+      display: flex;
+      background: var(--vscode-editor-background);
+      border-bottom: 1px solid var(--vscode-panel-border);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .diff-header .diff-cell {
+      padding: 8px 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .diff-header .diff-cell:hover {
+      background: var(--vscode-list-hoverBackground);
+    }
+
+    .diff-row {
+      display: flex;
+      border-bottom: 1px solid var(--vscode-panel-border);
+      font-size: 12px;
+    }
+
+    .diff-cell {
+      padding: 4px 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
+    }
+
+    .diff-fn { flex: 2; min-width: 160px; color: var(--vscode-symbolIcon-functionForeground, #dcdcaa); }
+    .diff-file { flex: 1; min-width: 100px; color: var(--vscode-textLink-foreground); cursor: pointer; }
+    .diff-file:hover { text-decoration: underline; }
+    .diff-num { width: 75px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; justify-content: flex-end; }
+    .diff-status { width: 80px; flex-shrink: 0; font-size: 11px; text-transform: capitalize; }
+
+    /* Export dropdown */
+    .export-container {
+      position: relative;
+    }
+
+    .export-btn {
+      padding: 4px 12px;
+      background: var(--vscode-button-secondaryBackground);
+      color: var(--vscode-button-secondaryForeground);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .export-btn:hover {
+      background: var(--vscode-button-secondaryHoverBackground);
+    }
+
+    .export-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 4px;
+      background: var(--vscode-menu-background, var(--vscode-dropdown-background));
+      border: 1px solid var(--vscode-menu-border, var(--vscode-dropdown-border));
+      border-radius: 4px;
+      z-index: 50;
+      min-width: 140px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .export-option {
+      display: block;
+      width: 100%;
+      padding: 6px 12px;
+      background: none;
+      border: none;
+      color: var(--vscode-menu-foreground, var(--vscode-foreground));
+      font-size: 12px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .export-option:hover {
+      background: var(--vscode-menu-selectionBackground, var(--vscode-list-hoverBackground));
+      color: var(--vscode-menu-selectionForeground, var(--vscode-foreground));
+    }
+
+    /* Copy-to-clipboard button */
+    .copy-btn {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--vscode-foreground);
+      cursor: pointer;
+      padding: 0 4px;
+      font-size: 12px;
+      opacity: 0.5;
+      flex-shrink: 0;
+      margin-left: 4px;
+    }
+
+    .copy-btn:hover {
+      opacity: 1;
+    }
+
+    .virtual-row:hover .copy-btn {
+      display: inline-flex;
     }
   </style>
 </head>

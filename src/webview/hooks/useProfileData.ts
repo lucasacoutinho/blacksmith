@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { pipe, Match, Option } from 'effect';
 import { useProfileStore } from '../store';
+import { buildEdgeIndex, type EdgeIndex } from '../utils/edgeIndex';
 import type { FunctionStats, CallEdge, SerializedProfileData } from '../../types';
 
 type ProfileState = ReturnType<typeof useProfileStore.getState>['profile'];
@@ -8,21 +9,49 @@ type ProfileState = ReturnType<typeof useProfileStore.getState>['profile'];
 const extractData = (profile: ProfileState): Option.Option<SerializedProfileData> =>
   profile._tag === 'Loaded' ? Option.some(profile.data) : Option.none();
 
-export const useStats = (): readonly FunctionStats[] => {
+// Unified hook: computes stats array and statsMap in a single pass
+export const useStatsData = (): { stats: readonly FunctionStats[]; statsMap: ReadonlyMap<number, FunctionStats> } => {
   const profile = useProfileStore((s) => s.profile);
 
   return useMemo(() =>
     pipe(
       extractData(profile),
-      Option.map((data) => Array.from(new Map<number, FunctionStats>(data.stats).values())),
-      Option.getOrElse((): readonly FunctionStats[] => [])
+      Option.map((data) => {
+        const stats = Array.from(new Map<number, FunctionStats>(data.stats).values());
+        const statsMap: ReadonlyMap<number, FunctionStats> = new Map(stats.map((s) => [s.id, s]));
+        return { stats, statsMap };
+      }),
+      Option.getOrElse(() => ({
+        stats: [] as readonly FunctionStats[],
+        statsMap: new Map() as ReadonlyMap<number, FunctionStats>,
+      }))
     ),
     [profile]
   );
 };
 
+// Backwards-compatible: delegates to useStatsData
+export const useStats = (): readonly FunctionStats[] => useStatsData().stats;
+
+// Backwards-compatible: delegates to useStatsData
+export const useStatsMap = (): ReadonlyMap<number, FunctionStats> => useStatsData().statsMap;
+
+// Pre-lowered search index built once when stats change
+interface SearchEntry {
+  readonly stat: FunctionStats;
+  readonly nameLower: string;
+  readonly fileLower: string;
+}
+
+const useSearchIndex = (stats: readonly FunctionStats[]): readonly SearchEntry[] =>
+  useMemo(
+    () => stats.map((s) => ({ stat: s, nameLower: s.name.toLowerCase(), fileLower: s.file.toLowerCase() })),
+    [stats]
+  );
+
 export const useFilteredStats = (): readonly FunctionStats[] => {
-  const stats = useStats();
+  const { stats } = useStatsData();
+  const searchIndex = useSearchIndex(stats);
   const search = useProfileStore((s) => s.search);
   const sortKey = useProfileStore((s) => s.sortKey);
   const sortDir = useProfileStore((s) => s.sortDir);
@@ -31,7 +60,7 @@ export const useFilteredStats = (): readonly FunctionStats[] => {
   return useMemo(() => {
     const q = search.toLowerCase();
     const filtered = search
-      ? stats.filter((s) => s.name.toLowerCase().includes(q) || s.file.toLowerCase().includes(q))
+      ? searchIndex.filter((e) => e.nameLower.includes(q) || e.fileLower.includes(q)).map((e) => e.stat)
       : stats;
 
     const getCost = (s: FunctionStats, type: 'self' | 'total') =>
@@ -52,7 +81,20 @@ export const useFilteredStats = (): readonly FunctionStats[] => {
       );
       return sortDir === 'desc' ? -cmp : cmp;
     });
-  }, [stats, search, sortKey, sortDir, metricIdx]);
+  }, [stats, searchIndex, search, sortKey, sortDir, metricIdx]);
+};
+
+// Count-only hook: avoids sorting cost for Header display
+export const useFilteredCount = (): number => {
+  const { stats } = useStatsData();
+  const searchIndex = useSearchIndex(stats);
+  const search = useProfileStore((s) => s.search);
+
+  return useMemo(() => {
+    if (!search) return stats.length;
+    const q = search.toLowerCase();
+    return searchIndex.filter((e) => e.nameLower.includes(q) || e.fileLower.includes(q)).length;
+  }, [stats, searchIndex, search]);
 };
 
 export const useTotalCost = (): number => {
@@ -102,8 +144,8 @@ export const useEdges = (): readonly CallEdge[] => {
   );
 };
 
-export const useStatsMap = (): ReadonlyMap<number, FunctionStats> => {
-  const stats = useStats();
-
-  return useMemo(() => new Map(stats.map((s) => [s.id, s])), [stats]);
+// Pre-built caller→callees edge index for O(1) lookups
+export const useEdgeIndex = (): EdgeIndex => {
+  const edges = useEdges();
+  return useMemo(() => buildEdgeIndex(edges), [edges]);
 };
