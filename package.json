@@ -52,8 +52,8 @@
     "test:integration:run": "npm run build:test:integration && vscode-test",
     "package": "vsce package --no-dependencies",
     "package:list": "vsce ls --no-dependencies",
-    "publish:vscode": "vsce publish --no-dependencies",
-    "publish:open-vsx": "ovsx publish --no-dependencies"
+    "publish:vscode": "vsce publish --no-dependencies --skip-duplicate",
+    "publish:open-vsx": "ovsx publish --no-dependencies --skip-duplicate"
   },
   "dependencies": {
     "effect": "^3.22.1",
