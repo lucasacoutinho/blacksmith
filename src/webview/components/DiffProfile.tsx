@@ -1,5 +1,5 @@
-import { useCallback, memo, type CSSProperties } from 'react';
-import { FixedSizeList as List } from 'react-window';
+import { useCallback, memo } from 'react';
+import { List, type RowComponentProps } from 'react-window';
 import { useProfileStore, type SortKey } from '../store';
 import { useResizeObserver } from '../hooks';
 import { formatCost, shortenPath } from '../utils';
@@ -33,14 +33,14 @@ const formatDeltaPct = (pct: number): string => {
   return `${prefix}${pct.toFixed(1)}%`;
 };
 
-interface DiffRowProps {
-  readonly index: number;
-  readonly style: CSSProperties;
+interface DiffRowData {
   readonly entries: readonly DiffEntry[];
   readonly onOpenFile: (path: string, line: number) => void;
 }
 
-const DiffRow = memo(function DiffRow({ index, style, entries, onOpenFile }: DiffRowProps) {
+type DiffRowProps = RowComponentProps<DiffRowData>;
+
+const DiffRow = function DiffRow({ index, style, entries, onOpenFile }: DiffRowProps) {
   const entry = entries[index];
   const color = statusColor(entry.status);
 
@@ -71,7 +71,7 @@ const DiffRow = memo(function DiffRow({ index, style, entries, onOpenFile }: Dif
       </div>
     </div>
   );
-});
+};
 
 const DiffSummary = memo(function DiffSummary({ diff }: { diff: DiffResult }) {
   const clearDiff = useProfileStore((s) => s.clearDiff);
@@ -178,15 +178,13 @@ export const DiffProfile = memo(function DiffProfile() {
         <div className="diff-cell diff-status">Status</div>
       </div>
       <List
-        height={height || 400}
-        itemCount={sorted.length}
-        itemSize={LAYOUT.ROW_HEIGHT}
-        width="100%"
-      >
-        {({ index, style }) => (
-          <DiffRow index={index} style={style} entries={sorted} onOpenFile={onOpenFile} />
-        )}
-      </List>
+        role="presentation"
+        style={{ height: height || 400 }}
+        rowComponent={DiffRow}
+        rowCount={sorted.length}
+        rowHeight={LAYOUT.ROW_HEIGHT}
+        rowProps={{ entries: sorted, onOpenFile }}
+      />
     </div>
   );
 });
