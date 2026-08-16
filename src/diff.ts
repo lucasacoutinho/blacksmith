@@ -1,5 +1,25 @@
 import type { FunctionStats, DiffEntry, DiffResult } from './types';
 
+export interface ComparisonMetric {
+  readonly name: string;
+  readonly profileAIndex: number;
+  readonly profileBIndex: number;
+}
+
+export const resolveComparisonMetric = (
+  eventTypesA: readonly string[],
+  eventTypesB: readonly string[],
+  activeMetricIndex: number,
+): ComparisonMetric | null => {
+  const name = eventTypesA[activeMetricIndex];
+  if (!name) return null;
+
+  const profileBIndex = eventTypesB.indexOf(name);
+  if (profileBIndex < 0) return null;
+
+  return { name, profileAIndex: activeMetricIndex, profileBIndex };
+};
+
 const functionKey = (fn: FunctionStats): string => `${fn.name}\0${fn.file}`;
 
 const deltaPct = (a: number, b: number): number =>
@@ -11,8 +31,7 @@ const classifyStatus = (delta: number): DiffEntry['status'] =>
 export const computeDiff = (
   statsA: readonly FunctionStats[],
   statsB: readonly FunctionStats[],
-  metricIndex: number,
-  metricName: string,
+  metric: ComparisonMetric,
   filenameA: string,
   filenameB: string,
   totalCostA: number,
@@ -31,16 +50,15 @@ export const computeDiff = (
     const a = mapA.get(key);
     const b = mapB.get(key);
 
-    const selfA = a ? (a.selfCosts?.[metricIndex] ?? a.selfCost) : 0;
-    const selfB = b ? (b.selfCosts?.[metricIndex] ?? b.selfCost) : 0;
-    const totalA = a ? (a.totalCosts?.[metricIndex] ?? a.totalCost) : 0;
-    const totalB = b ? (b.totalCosts?.[metricIndex] ?? b.totalCost) : 0;
+    const selfA = a ? (a.selfCosts?.[metric.profileAIndex] ?? a.selfCost) : 0;
+    const selfB = b ? (b.selfCosts?.[metric.profileBIndex] ?? b.selfCost) : 0;
+    const totalA = a ? (a.totalCosts?.[metric.profileAIndex] ?? a.totalCost) : 0;
+    const totalB = b ? (b.totalCosts?.[metric.profileBIndex] ?? b.totalCost) : 0;
 
     const selfDelta = selfB - selfA;
     const totalDelta = totalB - totalA;
 
-    const status: DiffEntry['status'] =
-      !a ? 'added' : !b ? 'removed' : classifyStatus(totalDelta);
+    const status: DiffEntry['status'] = !a ? 'added' : !b ? 'removed' : classifyStatus(totalDelta);
 
     const representative = (b ?? a)!;
 
@@ -71,7 +89,7 @@ export const computeDiff = (
     totalCostB,
     totalDelta: totalCostB - totalCostA,
     totalDeltaPct: deltaPct(totalCostA, totalCostB),
-    metricName,
+    metricName: metric.name,
     filenameA,
     filenameB,
   };

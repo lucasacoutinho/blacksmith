@@ -16,10 +16,7 @@ export const TabBar = memo(function TabBar() {
   const hasDiff = useProfileStore((s) => s.diff !== null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  const TABS = useMemo(
-    () => hasDiff ? [...BASE_TABS, DIFF_TAB] : BASE_TABS,
-    [hasDiff]
-  );
+  const TABS = useMemo(() => (hasDiff ? [...BASE_TABS, DIFF_TAB] : BASE_TABS), [hasDiff]);
 
   const onClick = useCallback((id: TabId) => setActiveTab(id), [setActiveTab]);
 
@@ -49,7 +46,7 @@ export const TabBar = memo(function TabBar() {
       setActiveTab(tab.id);
       tabRefs.current[nextIndex]?.focus();
     },
-    [setActiveTab, TABS]
+    [setActiveTab, TABS],
   );
 
   return (
@@ -57,7 +54,9 @@ export const TabBar = memo(function TabBar() {
       {TABS.map((tab, index) => (
         <button
           key={tab.id}
-          ref={(el) => { tabRefs.current[index] = el; }}
+          ref={(el) => {
+            tabRefs.current[index] = el;
+          }}
           id={`tab-${tab.id}`}
           role="tab"
           aria-selected={activeTab === tab.id}

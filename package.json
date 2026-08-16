@@ -1,35 +1,90 @@
 {
   "name": "blacksmith",
   "displayName": "Blacksmith",
-  "description": "Visualize callgrind/cachegrind profiles with Flat Profile, Call Graph, Caller Map, and Flame Graph views",
   "version": "0.2.1",
-  "publisher": "lucasalvcoutinho",
+  "description": "Visualize callgrind/cachegrind profiles with Flat Profile, Call Graph, Caller Map, and Flame Graph views",
+  "categories": [
+    "Debuggers",
+    "Visualization"
+  ],
+  "keywords": [
+    "cachegrind",
+    "callgrind",
+    "flame-graph",
+    "performance",
+    "profiler",
+    "valgrind"
+  ],
+  "bugs": {
+    "url": "https://github.com/lucasacoutinho/blacksmith/issues"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/lucasacoutinho/blacksmith"
   },
-  "bugs": {
-    "url": "https://github.com/lucasacoutinho/blacksmith/issues"
-  },
-  "icon": "icon.png",
-  "keywords": [
-    "profiler",
-    "callgrind",
-    "cachegrind",
-    "valgrind",
-    "flame-graph",
-    "performance"
-  ],
-  "engines": {
-    "vscode": "^1.85.0"
-  },
-  "categories": [
-    "Debuggers",
-    "Visualization"
-  ],
-  "activationEvents": [],
+  "publisher": "lucasalvcoutinho",
   "main": "./dist/extension.js",
+  "scripts": {
+    "vscode:prepublish": "npm run build:prod",
+    "build": "npm run build:parser && npm run build:extension && npm run build:webview",
+    "build:prod": "npm run build:parser && npm run build:extension:prod && npm run build:webview:prod",
+    "build:parser": "cd src/parser && opam exec -- dune build @melange && cd ../.. && node scripts/prepare-parser-output.mjs && esbuild src/parser/_build/default/dist/callgrind.js --bundle --outfile=dist/parser/callgrind.js --format=cjs --platform=node && node scripts/smoke-parser-output.mjs",
+    "build:extension": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
+    "build:extension:prod": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --minify",
+    "build:webview": "esbuild src/webview/index.tsx --bundle --outfile=dist/webview.js --format=iife --platform=browser --loader:.tsx=tsx --jsx=automatic --sourcemap",
+    "build:webview:prod": "esbuild src/webview/index.tsx --bundle --outfile=dist/webview.js --format=iife --platform=browser --loader:.tsx=tsx --jsx=automatic --minify --define:process.env.NODE_ENV=\\\"production\\\"",
+    "watch": "npm run build:parser && node scripts/watch.mjs",
+    "watch:extension": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap --watch",
+    "watch:webview": "esbuild src/webview/index.tsx --bundle --outfile=dist/webview.js --format=iife --platform=browser --loader:.tsx=tsx --jsx=automatic --sourcemap --watch",
+    "test": "vitest --config vitest-config.mts",
+    "test:run": "vitest --run --config vitest-config.mts",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.unit.json && tsc --noEmit -p tsconfig.integration.json",
+    "check:source-policy": "node scripts/check-source-policy.mjs",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix .",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "check": "npm run check:source-policy && npm run fmt:check && npm run lint && npm run typecheck && npm run test:run",
+    "audit": "npm audit",
+    "build:test:integration": "esbuild test/integration/extension.test.ts --bundle --outfile=dist/test/extension.test.js --external:vscode --format=cjs --platform=node",
+    "test:integration": "npm run build:prod && npm run test:integration:run",
+    "test:integration:run": "npm run build:test:integration && vscode-test",
+    "package": "vsce package --no-dependencies",
+    "package:list": "vsce ls --no-dependencies",
+    "publish:vscode": "vsce publish --no-dependencies",
+    "publish:open-vsx": "ovsx publish --no-dependencies"
+  },
+  "dependencies": {
+    "effect": "^3.22.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-window": "^1.8.10",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.20.1",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.2.0",
+    "@types/react-window": "^1.8.8",
+    "@types/vscode": "^1.85.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^3.9.2",
+    "esbuild": "^0.28.2",
+    "jsdom": "^27.0.1",
+    "ovsx": "^1.1.1",
+    "oxfmt": "^0.63.0",
+    "oxlint": "^1.78.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "diff": "^8.0.3",
+    "serialize-javascript": "^7.0.5"
+  },
   "contributes": {
     "commands": [
       {
@@ -143,41 +198,14 @@
       }
     ]
   },
-  "scripts": {
-    "vscode:prepublish": "npm run build:prod",
-    "build": "npm run build:extension && npm run build:webview",
-    "build:prod": "npm run build:extension:prod && npm run build:webview:prod",
-    "build:parser": "cd src/parser && dune build @melange && cp -r _build/default/dist/* ../../dist/parser/",
-    "build:parser:watch": "cd src/parser && dune build @melange --watch",
-    "build:extension": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
-    "build:extension:prod": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --minify",
-    "build:webview": "esbuild src/webview/index.tsx --bundle --outfile=dist/webview.js --format=iife --platform=browser --loader:.tsx=tsx --jsx=automatic --sourcemap",
-    "build:webview:prod": "esbuild src/webview/index.tsx --bundle --outfile=dist/webview.js --format=iife --platform=browser --loader:.tsx=tsx --jsx=automatic --minify --define:process.env.NODE_ENV=\\\"production\\\"",
-    "watch": "concurrently \"npm run watch:extension\" \"npm run watch:webview\"",
-    "watch:extension": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap --watch",
-    "watch:webview": "esbuild src/webview/index.tsx --bundle --outfile=dist/webview.js --format=iife --platform=browser --loader:.tsx=tsx --jsx=automatic --sourcemap --watch",
-    "test": "vitest",
-    "test:run": "vitest --run",
-    "lint": "eslint src --ext ts,tsx",
-    "package": "npm run build:prod && npx vsce package"
+  "activationEvents": [],
+  "icon": "icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
   },
-  "devDependencies": {
-    "@types/node": "^20.10.0",
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
-    "@types/react-window": "^1.8.8",
-    "@types/vscode": "^1.85.0",
-    "concurrently": "^8.2.0",
-    "esbuild": "^0.19.0",
-    "eslint": "^8.56.0",
-    "typescript": "^5.3.0",
-    "vitest": "^1.2.0"
-  },
-  "dependencies": {
-    "effect": "^3.19.15",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-window": "^1.8.10",
-    "zustand": "^5.0.10"
+  "allowScripts": {
+    "@vscode/vsce-sign@2.0.9": true,
+    "esbuild@0.28.2": true,
+    "keytar@7.9.0": true
   }
 }

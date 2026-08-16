@@ -1,0 +1,30 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "react", "vitest"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2022": true,
+    "vitest": true
+  },
+  "settings": {
+    "react": {
+      "version": "18.3"
+    }
+  },
+  "rules": {
+    "eslint/no-underscore-dangle": "off",
+    "react/react-in-jsx-scope": "off",
+    "unicorn/no-array-sort": "off",
+    "unicorn/require-post-message-target-origin": "off"
+  },
+  "options": {
+    "denyWarnings": true,
+    "reportUnusedDisableDirectives": "error"
+  }
+}

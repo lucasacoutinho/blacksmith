@@ -2,12 +2,12 @@ import * as fs from 'fs';
 import * as nodePath from 'path';
 import { pipe, Effect, Data } from 'effect';
 import type { ProfileData, ParseProgress, SerializedProfileData } from '../types';
-import { deserializeProfileData, FunctionId } from '../types';
+import { FunctionId } from '../types';
 
 interface OcamlParser {
   readonly parseCallgrindContent: (
     content: string,
-    onProgress: (percent: number, fnCount: number, currentFn: string) => void
+    onProgress: (percent: number, fnCount: number, currentFn: string) => void,
   ) => SerializedProfileData;
 }
 
@@ -44,9 +44,10 @@ const loadOcamlParser = (): Effect.Effect<OcamlParser, OcamlParserNotAvailable> 
       }
       return parser;
     },
-    catch: () => new OcamlParserNotAvailable({
-      message: `OCaml parser not available at ${getOcamlParserPath()}. Run 'npm run build:parser' first.`
-    }),
+    catch: () =>
+      new OcamlParserNotAvailable({
+        message: `OCaml parser not available at ${getOcamlParserPath()}. Run 'npm run build:parser' first.`,
+      }),
   });
 
 const readFileContent = (filePath: string): Effect.Effect<string, FileReadError> =>
@@ -58,10 +59,7 @@ const readFileContent = (filePath: string): Effect.Effect<string, FileReadError>
 const transformOcamlOutput = (raw: SerializedProfileData): ProfileData => {
   // The OCaml parser outputs FunctionId as plain numbers, need to brand them
   const functions = new Map(
-    raw.functions.map(([id, fn]) => [
-      FunctionId(id),
-      { ...fn, id: FunctionId(id) }
-    ])
+    raw.functions.map(([id, fn]) => [FunctionId(id), { ...fn, id: FunctionId(id) }]),
   );
 
   const stats = new Map(
@@ -72,11 +70,11 @@ const transformOcamlOutput = (raw: SerializedProfileData): ProfileData => {
         id: FunctionId(id),
         callers: s.callers.map(FunctionId),
         callees: s.callees.map(FunctionId),
-      }
-    ])
+      },
+    ]),
   );
 
-  const edges = raw.edges.map(e => ({
+  const edges = raw.edges.map((e) => ({
     ...e,
     callerId: FunctionId(e.callerId),
     calleeId: FunctionId(e.calleeId),
@@ -95,27 +93,27 @@ const transformOcamlOutput = (raw: SerializedProfileData): ProfileData => {
 
 const parseEffect = (
   filePath: string,
-  onProgress?: (progress: ParseProgress) => void
+  onProgress?: (progress: ParseProgress) => void,
 ): Effect.Effect<ProfileData, OcamlParserNotAvailable | FileReadError> =>
   pipe(
     Effect.all([loadOcamlParser(), readFileContent(filePath)]),
     Effect.map(([parser, content]) => {
       const raw = parser.parseCallgrindContent(content, (percent, fnCount, currentFn) =>
-        onProgress?.({ percent, functionCount: fnCount, currentFunction: currentFn })
+        onProgress?.({ percent, functionCount: fnCount, currentFunction: currentFn }),
       );
       return transformOcamlOutput(raw);
-    })
+    }),
   );
 
 export const parseCallgrindFile = async (
   filePath: string,
-  onProgress?: (progress: ParseProgress) => void
+  onProgress?: (progress: ParseProgress) => void,
 ): Promise<ProfileData> =>
   Effect.runPromise(
     pipe(
       parseEffect(filePath, onProgress),
-      Effect.mapError((e) =>
-        new Error(e._tag === 'FileReadError' ? `Failed to read ${e.path}` : e.message)
-      )
-    )
+      Effect.mapError(
+        (e) => new Error(e._tag === 'FileReadError' ? `Failed to read ${e.path}` : e.message),
+      ),
+    ),
   );

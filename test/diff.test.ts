@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeDiff } from '../src/diff';
+import { computeDiff, resolveComparisonMetric, type ComparisonMetric } from '../src/diff';
 import { FunctionId } from '../src/types';
 import type { FunctionStats } from '../src/types';
 
@@ -25,12 +25,18 @@ const makeFn = (
   callees: [],
 });
 
+const timeMetric: ComparisonMetric = {
+  name: 'Time',
+  profileAIndex: 0,
+  profileBIndex: 0,
+};
+
 describe('computeDiff', () => {
   it('computes correct deltas for functions in both profiles', () => {
     const statsA = [makeFn(1, 'foo', '/a.php', 100, 200)];
     const statsB = [makeFn(1, 'foo', '/a.php', 150, 300)];
 
-    const result = computeDiff(statsA, statsB, 0, 'Time', 'a.callgrind', 'b.callgrind', 200, 300);
+    const result = computeDiff(statsA, statsB, timeMetric, 'a.callgrind', 'b.callgrind', 200, 300);
 
     expect(result.entries).toHaveLength(1);
     const entry = result.entries[0];
@@ -46,7 +52,7 @@ describe('computeDiff', () => {
     const statsA = [makeFn(1, 'foo', '/a.php', 100, 200)];
     const statsB: FunctionStats[] = [];
 
-    const result = computeDiff(statsA, statsB, 0, 'Time', 'a', 'b', 200, 0);
+    const result = computeDiff(statsA, statsB, timeMetric, 'a', 'b', 200, 0);
 
     expect(result.entries).toHaveLength(1);
     expect(result.entries[0].status).toBe('removed');
@@ -58,7 +64,7 @@ describe('computeDiff', () => {
     const statsA: FunctionStats[] = [];
     const statsB = [makeFn(1, 'bar', '/b.php', 50, 80)];
 
-    const result = computeDiff(statsA, statsB, 0, 'Time', 'a', 'b', 0, 80);
+    const result = computeDiff(statsA, statsB, timeMetric, 'a', 'b', 0, 80);
 
     expect(result.entries).toHaveLength(1);
     expect(result.entries[0].status).toBe('added');
@@ -70,7 +76,7 @@ describe('computeDiff', () => {
     const statsA = [makeFn(1, 'foo', '/a.php', 100, 200)];
     const statsB = [makeFn(1, 'foo', '/a.php', 100, 200)];
 
-    const result = computeDiff(statsA, statsB, 0, 'Time', 'a', 'b', 200, 200);
+    const result = computeDiff(statsA, statsB, timeMetric, 'a', 'b', 200, 200);
 
     expect(result.entries[0].status).toBe('unchanged');
     expect(result.entries[0].totalDelta).toBe(0);
@@ -80,7 +86,7 @@ describe('computeDiff', () => {
     const statsA = [makeFn(1, 'foo', '/a.php', 200, 400)];
     const statsB = [makeFn(1, 'foo', '/a.php', 100, 200)];
 
-    const result = computeDiff(statsA, statsB, 0, 'Time', 'a', 'b', 400, 200);
+    const result = computeDiff(statsA, statsB, timeMetric, 'a', 'b', 400, 200);
 
     expect(result.entries[0].status).toBe('improved');
     expect(result.entries[0].totalDelta).toBe(-200);
@@ -90,7 +96,7 @@ describe('computeDiff', () => {
     const statsA = [makeFn(1, 'foo', '/a.php', 100, 200)];
     const statsB = [makeFn(1, 'foo', '/a.php', 200, 400)];
 
-    const result = computeDiff(statsA, statsB, 0, 'Time', 'a', 'b', 200, 400);
+    const result = computeDiff(statsA, statsB, timeMetric, 'a', 'b', 200, 400);
 
     expect(result.entries[0].status).toBe('regressed');
     expect(result.entries[0].totalDelta).toBe(200);
@@ -100,7 +106,7 @@ describe('computeDiff', () => {
     const statsA = [makeFn(1, 'foo', '/a.php', 100, 200)];
     const statsB = [makeFn(1, 'foo', '/a.php', 150, 300)];
 
-    const result = computeDiff(statsA, statsB, 0, 'Time', 'a', 'b', 200, 300);
+    const result = computeDiff(statsA, statsB, timeMetric, 'a', 'b', 200, 300);
 
     expect(result.entries[0].selfDeltaPct).toBe(50);
     expect(result.entries[0].totalDeltaPct).toBe(50);
@@ -110,7 +116,7 @@ describe('computeDiff', () => {
     const statsA = [makeFn(1, 'foo', '/a.php', 100, 500)];
     const statsB = [makeFn(1, 'foo', '/a.php', 100, 300)];
 
-    const result = computeDiff(statsA, statsB, 0, 'Time', 'a', 'b', 500, 300);
+    const result = computeDiff(statsA, statsB, timeMetric, 'a', 'b', 500, 300);
 
     expect(result.totalCostA).toBe(500);
     expect(result.totalCostB).toBe(300);
@@ -130,7 +136,7 @@ describe('computeDiff', () => {
       makeFn(3, 'medium', '/a.php', 80, 200),
     ];
 
-    const result = computeDiff(statsA, statsB, 0, 'Time', 'a', 'b', 320, 730);
+    const result = computeDiff(statsA, statsB, timeMetric, 'a', 'b', 320, 730);
 
     expect(result.entries[0].name).toBe('big');
     expect(result.entries[1].name).toBe('medium');
@@ -138,16 +144,10 @@ describe('computeDiff', () => {
   });
 
   it('matches functions by name AND file composite key', () => {
-    const statsA = [
-      makeFn(1, 'foo', '/a.php', 100, 200),
-      makeFn(2, 'foo', '/b.php', 50, 100),
-    ];
-    const statsB = [
-      makeFn(3, 'foo', '/a.php', 150, 300),
-      makeFn(4, 'foo', '/b.php', 60, 120),
-    ];
+    const statsA = [makeFn(1, 'foo', '/a.php', 100, 200), makeFn(2, 'foo', '/b.php', 50, 100)];
+    const statsB = [makeFn(3, 'foo', '/a.php', 150, 300), makeFn(4, 'foo', '/b.php', 60, 120)];
 
-    const result = computeDiff(statsA, statsB, 0, 'Time', 'a', 'b', 300, 420);
+    const result = computeDiff(statsA, statsB, timeMetric, 'a', 'b', 300, 420);
 
     expect(result.entries).toHaveLength(2);
     const entryA = result.entries.find((e) => e.file === '/a.php')!;
@@ -157,10 +157,50 @@ describe('computeDiff', () => {
   });
 
   it('preserves metadata in the result', () => {
-    const result = computeDiff([], [], 0, 'Ir', 'profile_a.callgrind', 'profile_b.callgrind', 0, 0);
+    const result = computeDiff(
+      [],
+      [],
+      { ...timeMetric, name: 'Ir' },
+      'profile_a.callgrind',
+      'profile_b.callgrind',
+      0,
+      0,
+    );
 
     expect(result.metricName).toBe('Ir');
     expect(result.filenameA).toBe('profile_a.callgrind');
     expect(result.filenameB).toBe('profile_b.callgrind');
+  });
+
+  it('uses each profile metric index when event order differs', () => {
+    const statsA = [
+      {
+        ...makeFn(1, 'foo', '/a.php', 10, 20),
+        selfCosts: [10, 100],
+        totalCosts: [20, 200],
+      },
+    ];
+    const statsB = [
+      {
+        ...makeFn(1, 'foo', '/a.php', 15, 30),
+        selfCosts: [150, 15],
+        totalCosts: [300, 30],
+      },
+    ];
+    const metric = resolveComparisonMetric(['Time', 'Memory'], ['Memory', 'Time'], 0);
+
+    expect(metric).toEqual({ name: 'Time', profileAIndex: 0, profileBIndex: 1 });
+    const result = computeDiff(statsA, statsB, metric!, 'a', 'b', 20, 30);
+    expect(result.entries[0]).toMatchObject({
+      selfCostA: 10,
+      selfCostB: 15,
+      totalCostA: 20,
+      totalCostB: 30,
+    });
+  });
+
+  it('rejects a comparison when the active metric is absent', () => {
+    expect(resolveComparisonMetric(['Time', 'Memory'], ['Memory'], 0)).toBeNull();
+    expect(resolveComparisonMetric(['Time'], ['Time'], 2)).toBeNull();
   });
 });

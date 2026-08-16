@@ -1,11 +1,20 @@
-import { useMemo, useCallback, useState, useRef, useEffect, memo, type MouseEvent, type WheelEvent } from 'react';
+import {
+  useMemo,
+  useCallback,
+  useState,
+  useRef,
+  memo,
+  type MouseEvent,
+  type WheelEvent,
+} from 'react';
 import { pipe, Array as A, Option } from 'effect';
 import { useProfileStore, useFunctionCost } from '../store';
 import { useResizeObserver, useStatsData, useEdges, useEdgeIndex, useTotalCost } from '../hooks';
 import { formatCost, calculatePercent, truncateName, getCostColor } from '../utils';
 import { LAYOUT, LIMITS } from '../constants';
 import type { FunctionStats, CallEdge } from '../../types';
-import type { EdgeIndex } from '../utils/edgeIndex';
+import type { EdgeIndex } from '../utils/edge-index';
+import { postWebviewMessage } from '../vscode-bridge';
 
 interface GraphNode {
   readonly id: number;
@@ -27,8 +36,10 @@ interface Transform {
   readonly scale: number;
 }
 
-const getVscode = (): Option.Option<{ postMessage: (m: unknown) => void }> =>
-  Option.fromNullable((window as unknown as { vscode?: { postMessage: (m: unknown) => void } }).vscode);
+interface ViewTransform {
+  readonly key: string;
+  readonly value: Transform;
+}
 
 const nodeWidth = LAYOUT.NODE_WIDTH + 20;
 const nodeHeight = LAYOUT.NODE_HEIGHT + 60;
@@ -58,11 +69,10 @@ const buildGraph = (
   edgeIndex: EdgeIndex,
   statsMap: ReadonlyMap<number, FunctionStats>,
   selectedId: number | null,
-  getTotalCost: (fn: FunctionStats) => number
+  getTotalCost: (fn: FunctionStats) => number,
 ) => {
-  const functionsToShow = selectedId !== null
-    ? findDescendants(selectedId, edgeIndex)
-    : new Set(stats.map((s) => s.id));
+  const functionsToShow =
+    selectedId !== null ? findDescendants(selectedId, edgeIndex) : new Set(stats.map((s) => s.id));
 
   const hasCallers = new Set<number>();
   for (const e of edges) {
@@ -76,7 +86,7 @@ const buildGraph = (
     A.filter((id) => !hasCallers.has(id)),
     A.map((id) => statsMap.get(id)),
     A.filter((fn): fn is FunctionStats => fn !== undefined),
-    (arr) => [...arr].sort((a, b) => getTotalCost(b) - getTotalCost(a))
+    (arr) => [...arr].sort((a, b) => getTotalCost(b) - getTotalCost(a)),
   );
 
   const depths = new Map<number, number>();
@@ -109,7 +119,8 @@ const buildGraph = (
 
   for (const [, ids] of byDepth) {
     ids.sort((a, b) => {
-      const fnA = statsMap.get(a), fnB = statsMap.get(b);
+      const fnA = statsMap.get(a),
+        fnB = statsMap.get(b);
       return fnA && fnB ? getTotalCost(fnB) - getTotalCost(fnA) : 0;
     });
   }
@@ -130,7 +141,8 @@ const buildGraph = (
 
   const graphEdges: GraphEdge[] = [];
   for (const e of edges) {
-    const from = nodeMap.get(e.callerId), to = nodeMap.get(e.calleeId);
+    const from = nodeMap.get(e.callerId),
+      to = nodeMap.get(e.calleeId);
     if (from && to) graphEdges.push({ from, to, edge: e });
   }
 
@@ -145,7 +157,7 @@ const buildGraph = (
 export const CallGraph = memo(function CallGraph() {
   const [containerRef, dimensions] = useResizeObserver<HTMLDivElement>(40);
   const svgRef = useRef<SVGSVGElement>(null);
-  const [transform, setTransform] = useState<Transform>({ x: 0, y: 0, scale: 1 });
+  const [viewTransform, setViewTransform] = useState<ViewTransform | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
 
@@ -162,70 +174,116 @@ export const CallGraph = memo(function CallGraph() {
 
   const { nodes, graphEdges, graphWidth, graphHeight } = useMemo(
     () => buildGraph(stats, edges, edgeIndex, statsMap, selectedId, getTotalCost),
-    [stats, edges, edgeIndex, statsMap, selectedId, getTotalCost]
+    [stats, edges, edgeIndex, statsMap, selectedId, getTotalCost],
   );
 
-  useEffect(() => {
-    if (dimensions.width > 0 && dimensions.height > 0) {
-      const scale = Math.min(dimensions.width / (graphWidth + 100), dimensions.height / (graphHeight + 100), 1);
-      setTransform({ x: dimensions.width / 2, y: 50, scale: Math.max(0.3, scale) });
+  const transformKey = [
+    dimensions.width,
+    dimensions.height,
+    graphWidth,
+    graphHeight,
+    selectedId ?? 'all',
+  ].join(':');
+  const defaultTransform = useMemo<Transform>(() => {
+    if (dimensions.width <= 0 || dimensions.height <= 0) {
+      return { x: 0, y: 50, scale: 1 };
     }
-  }, [dimensions.width, dimensions.height, graphWidth, graphHeight, selectedId]);
+
+    const scale = Math.min(
+      dimensions.width / (graphWidth + 100),
+      dimensions.height / (graphHeight + 100),
+      1,
+    );
+    return { x: dimensions.width / 2, y: 50, scale: Math.max(0.3, scale) };
+  }, [dimensions.width, dimensions.height, graphWidth, graphHeight]);
+  const transform = viewTransform?.key === transformKey ? viewTransform.value : defaultTransform;
+  const updateTransform = useCallback(
+    (update: (current: Transform) => Transform) => {
+      setViewTransform((current) => ({
+        key: transformKey,
+        value: update(current?.key === transformKey ? current.value : defaultTransform),
+      }));
+    },
+    [transformKey, defaultTransform],
+  );
 
   const onOpenFile = useCallback(
-    (path: string, line: number) =>
-      pipe(
-        getVscode(),
-        Option.map((vs) => vs.postMessage({ type: 'openFile', path, line }))
-      ),
-    []
+    (path: string, line: number) => postWebviewMessage({ type: 'openFile', path, line }),
+    [],
   );
 
-  const onMouseDown = useCallback((e: MouseEvent) => {
-    if (e.button === 0) {
-      setIsPanning(true);
-      setPanStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
-    }
-  }, [transform]);
+  const onMouseDown = useCallback(
+    (e: MouseEvent) => {
+      if (e.button === 0) {
+        setIsPanning(true);
+        setPanStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
+      }
+    },
+    [transform],
+  );
 
-  const onMouseMove = useCallback((e: MouseEvent) => {
-    if (isPanning) setTransform((t) => ({ ...t, x: e.clientX - panStart.x, y: e.clientY - panStart.y }));
-  }, [isPanning, panStart]);
+  const onMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (isPanning)
+        updateTransform((current) => ({
+          ...current,
+          x: e.clientX - panStart.x,
+          y: e.clientY - panStart.y,
+        }));
+    },
+    [isPanning, panStart, updateTransform],
+  );
 
   const onMouseUp = useCallback(() => setIsPanning(false), []);
 
-  const onWheel = useCallback((e: WheelEvent) => {
-    e.preventDefault();
-    pipe(
-      Option.fromNullable(svgRef.current?.getBoundingClientRect()),
-      Option.map((rect) => {
-        const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        const newScale = Math.max(0.1, Math.min(3, transform.scale * delta));
-        const scaleChange = newScale / transform.scale;
-        setTransform((t) => ({ x: mx - (mx - t.x) * scaleChange, y: my - (my - t.y) * scaleChange, scale: newScale }));
-      })
-    );
-  }, [transform.scale]);
+  const onWheel = useCallback(
+    (e: WheelEvent) => {
+      e.preventDefault();
+      pipe(
+        Option.fromNullable(svgRef.current?.getBoundingClientRect()),
+        Option.map((rect) => {
+          const mx = e.clientX - rect.left,
+            my = e.clientY - rect.top;
+          const delta = e.deltaY > 0 ? 0.9 : 1.1;
+          const newScale = Math.max(0.1, Math.min(3, transform.scale * delta));
+          const scaleChange = newScale / transform.scale;
+          updateTransform((current) => ({
+            x: mx - (mx - current.x) * scaleChange,
+            y: my - (my - current.y) * scaleChange,
+            scale: newScale,
+          }));
+        }),
+      );
+    },
+    [transform.scale, updateTransform],
+  );
 
-  const onReset = useCallback(() => {
-    const scale = Math.min(dimensions.width / (graphWidth + 100), dimensions.height / (graphHeight + 100), 1);
-    setTransform({ x: dimensions.width / 2, y: 50, scale: Math.max(0.3, scale) });
-  }, [dimensions, graphWidth, graphHeight]);
+  const onReset = useCallback(
+    () => updateTransform(() => defaultTransform),
+    [updateTransform, defaultTransform],
+  );
 
   return (
     <div className="callgraph-container" ref={containerRef}>
       <div className="callgraph-nav">
         {selectedId !== null ? (
           <>
-            <button className="callgraph-back" onClick={goBack} disabled={historyLength === 0}>← Back</button>
-            <button className="callgraph-back" onClick={clearSelection}>Show All</button>
+            <button className="callgraph-back" onClick={goBack} disabled={historyLength === 0}>
+              ← Back
+            </button>
+            <button className="callgraph-back" onClick={clearSelection}>
+              Show All
+            </button>
           </>
         ) : (
           <span className="callgraph-hint">Click a function to focus on it and its callees</span>
         )}
-        <button className="callgraph-back" onClick={onReset}>Reset View</button>
-        <span className="callgraph-breadcrumb">{nodes.length} functions | Zoom: {(transform.scale * 100).toFixed(0)}%</span>
+        <button className="callgraph-back" onClick={onReset}>
+          Reset View
+        </button>
+        <span className="callgraph-breadcrumb">
+          {nodes.length} functions | Zoom: {(transform.scale * 100).toFixed(0)}%
+        </span>
       </div>
 
       <svg
@@ -246,7 +304,11 @@ export const CallGraph = memo(function CallGraph() {
           {graphEdges.map(({ from, to, edge }) => {
             const cost = getEdgeCost(edge);
             const strokeWidth = Math.max(1, Math.min(4, (cost / totalCost) * 40));
-            const x1 = from.x, y1 = from.y + LAYOUT.NODE_HEIGHT, x2 = to.x, y2 = to.y, midY = (y1 + y2) / 2;
+            const x1 = from.x,
+              y1 = from.y + LAYOUT.NODE_HEIGHT,
+              x2 = to.x,
+              y2 = to.y,
+              midY = (y1 + y2) / 2;
             return (
               <path
                 key={`edge-${from.id}-${to.id}`}
@@ -265,13 +327,34 @@ export const CallGraph = memo(function CallGraph() {
               <g
                 key={`node-${node.id}`}
                 className={`callgraph-node ${isSelected ? 'selected' : 'clickable'}`}
-                onClick={(e) => { e.stopPropagation(); isSelected ? onOpenFile(node.fn.file, node.fn.line) : selectFunction(node.id); }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (isSelected) {
+                    onOpenFile(node.fn.file, node.fn.line);
+                  } else {
+                    selectFunction(node.id);
+                  }
+                }}
                 transform={`translate(${node.x - LAYOUT.NODE_WIDTH / 2}, ${node.y})`}
               >
                 <title>{`${node.fn.name} - ${percent.toFixed(1)}% of total cost`}</title>
-                <rect width={LAYOUT.NODE_WIDTH} height={LAYOUT.NODE_HEIGHT} rx="4" fill={getCostColor(cost, totalCost)} className={`callgraph-node-rect ${isSelected ? 'selected' : ''}`} />
-                <text x={LAYOUT.NODE_WIDTH / 2} y={18} className={`callgraph-node-name ${isSelected ? 'selected' : ''}`}>{truncateName(node.fn.name, 20)}</text>
-                <text x={LAYOUT.NODE_WIDTH / 2} y={35} className="callgraph-node-cost">{percent.toFixed(1)}% • {formatCost(cost)}</text>
+                <rect
+                  width={LAYOUT.NODE_WIDTH}
+                  height={LAYOUT.NODE_HEIGHT}
+                  rx="4"
+                  fill={getCostColor(cost, totalCost)}
+                  className={`callgraph-node-rect ${isSelected ? 'selected' : ''}`}
+                />
+                <text
+                  x={LAYOUT.NODE_WIDTH / 2}
+                  y={18}
+                  className={`callgraph-node-name ${isSelected ? 'selected' : ''}`}
+                >
+                  {truncateName(node.fn.name, 20)}
+                </text>
+                <text x={LAYOUT.NODE_WIDTH / 2} y={35} className="callgraph-node-cost">
+                  {percent.toFixed(1)}% • {formatCost(cost)}
+                </text>
               </g>
             );
           })}

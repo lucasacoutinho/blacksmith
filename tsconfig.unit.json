@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.test.ts", "test/**/*.test.tsx"],
+  "exclude": ["dist", "node_modules", "test/integration"]
+}

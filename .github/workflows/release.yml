@@ -1,5 +1,8 @@
 name: Release
 
+permissions:
+  contents: write
+
 on:
   push:
     tags:
@@ -16,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Setup OCaml
@@ -26,37 +29,47 @@ jobs:
           dune-cache: true
 
       - name: Install Melange
-        run: opam install -y dune melange
+        run: opam install -y dune.3.21.0 melange.6.0.1-52
 
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Build parser
-        run: |
-          eval $(opam env)
-          cd src/parser && dune build @melange
-          mkdir -p ../../dist/parser
-          cp -r _build/default/dist/* ../../dist/parser/
+      - name: Audit dependencies
+        run: npm run audit
 
       - name: Build extension
         run: npm run build:prod
 
-      - name: Run tests
-        run: npm run test:run
+      - name: Check formatting, lint, types, and tests
+        run: npm run check
+
+      - name: Run Extension Host smoke test
+        run: xvfb-run -a npm run test:integration:run
+
+      - name: Package extension
+        run: npm run package
 
       - name: Debug package contents
         run: |
           echo "Files to be packaged:"
-          npx vsce ls --no-dependencies | wc -l
-          npx vsce ls --no-dependencies | head -100
+          npm run --silent package:list | wc -l
+          npm run --silent package:list | head -100
 
       - name: Publish to VS Code Marketplace
-        run: npx vsce publish --no-dependencies
+        run: npm run publish:vscode
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
       - name: Publish to Open VSX
-        run: npx ovsx publish --no-dependencies
+        run: npm run publish:open-vsx
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
         continue-on-error: true
+
+      - name: Publish GitHub release
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" ./*.vsix --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" ./*.vsix --verify-tag --generate-notes
+          fi
