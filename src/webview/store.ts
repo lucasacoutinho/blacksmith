@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
 import { pipe, Match, Option } from 'effect';
+import { postWebviewMessage } from './vscode-bridge';
 import type { SerializedProfileData, FunctionStats, CallEdge, DiffResult } from '../types';
 
 export type TabId = 'flat' | 'callgraph' | 'callermap' | 'flamegraph' | 'diff';
@@ -61,25 +62,23 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
   callGraphHistory: [],
   diff: null,
 
-  setLoading: (filename) =>
-    set({ profile: { _tag: 'Loading', filename, progress: 0 }, filename }),
+  setLoading: (filename) => set({ profile: { _tag: 'Loading', filename, progress: 0 }, filename }),
 
   setProgress: (progress) =>
-    set((s) =>
-      s.profile._tag === 'Loading'
-        ? { profile: { ...s.profile, progress } }
-        : s
-    ),
+    set((s) => (s.profile._tag === 'Loading' ? { profile: { ...s.profile, progress } } : s)),
 
-  setData: (data) =>
+  setData: (data) => {
     set({
       profile: { _tag: 'Loaded', data },
+      selectedMetricIndex: 0,
       selectedFunctionId: null,
       callGraphHistory: [],
-    }),
+    });
+    postWebviewMessage({ type: 'setMetricIndex', index: 0 });
+    postWebviewMessage({ type: 'selectFunction', id: null });
+  },
 
-  setError: (message) =>
-    set({ profile: { _tag: 'Error', message } }),
+  setError: (message) => set({ profile: { _tag: 'Error', message } }),
 
   setActiveTab: (activeTab) => set({ activeTab }),
   setSearch: (search) => set({ search }),
@@ -90,39 +89,46 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       sortDir: s.sortKey === key && s.sortDir === 'desc' ? 'asc' : 'desc',
     })),
 
-  setMetricIndex: (selectedMetricIndex) => set({ selectedMetricIndex }),
+  setMetricIndex: (selectedMetricIndex) => {
+    set({ selectedMetricIndex });
+    postWebviewMessage({ type: 'setMetricIndex', index: selectedMetricIndex });
+  },
 
-  selectFunction: (id) =>
+  selectFunction: (id) => {
     set((s) => ({
       selectedFunctionId: id,
       callGraphHistory:
         s.selectedFunctionId !== null
           ? [...s.callGraphHistory, s.selectedFunctionId]
           : s.callGraphHistory,
-    })),
+    }));
+    postWebviewMessage({ type: 'selectFunction', id });
+  },
 
-  goBack: () =>
-    set((s) => {
-      if (s.callGraphHistory.length === 0) return s;
-      const history = [...s.callGraphHistory];
-      const prevId = history.pop()!;
-      return { selectedFunctionId: prevId, callGraphHistory: history };
-    }),
+  goBack: () => {
+    const state = get();
+    if (state.callGraphHistory.length === 0) return;
 
-  clearSelection: () =>
-    set({ search: '', selectedFunctionId: null }),
+    const history = [...state.callGraphHistory];
+    const selectedFunctionId = history.pop()!;
+    set({ selectedFunctionId, callGraphHistory: history });
+    postWebviewMessage({ type: 'selectFunction', id: selectedFunctionId });
+  },
 
-  setDiff: (diff) =>
-    set({ diff, activeTab: 'diff' }),
+  clearSelection: () => {
+    set({ search: '', selectedFunctionId: null });
+    postWebviewMessage({ type: 'selectFunction', id: null });
+  },
 
-  clearDiff: () =>
-    set({ diff: null, activeTab: 'flat' }),
+  setDiff: (diff) => set({ diff, activeTab: 'diff' }),
+
+  clearDiff: () => set({ diff: null, activeTab: 'flat' }),
 
   getStats: () =>
     pipe(
       extractData(get().profile),
       Option.map((data) => Array.from(new Map<number, FunctionStats>(data.stats).values())),
-      Option.getOrElse((): readonly FunctionStats[] => [])
+      Option.getOrElse((): readonly FunctionStats[] => []),
     ),
 
   getFilteredStats: () => {
@@ -134,27 +140,30 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
         Match.value(type),
         Match.when('self', () => s.selfCosts?.[selectedMetricIndex] ?? s.selfCost),
         Match.when('total', () => s.totalCosts?.[selectedMetricIndex] ?? s.totalCost),
-        Match.exhaustive
+        Match.exhaustive,
       );
 
     return pipe(
-      search ? all.filter((s) => {
-        const q = search.toLowerCase();
-        return s.name.toLowerCase().includes(q) || s.file.toLowerCase().includes(q);
-      }) : all,
-      (filtered) => [...filtered].sort((a, b) => {
-        const cmp = pipe(
-          Match.value(sortKey),
-          Match.when('name', () => a.name.localeCompare(b.name)),
-          Match.when('file', () => a.file.localeCompare(b.file)),
-          Match.when('selfCost', () => getCost(a, 'self') - getCost(b, 'self')),
-          Match.when('totalCost', () => getCost(a, 'total') - getCost(b, 'total')),
-          Match.when('percent', () => getCost(a, 'total') - getCost(b, 'total')),
-          Match.when('calls', () => a.calls - b.calls),
-          Match.exhaustive
-        );
-        return sortDir === 'desc' ? -cmp : cmp;
-      })
+      search
+        ? all.filter((s) => {
+            const q = search.toLowerCase();
+            return s.name.toLowerCase().includes(q) || s.file.toLowerCase().includes(q);
+          })
+        : all,
+      (filtered) =>
+        [...filtered].sort((a, b) => {
+          const cmp = pipe(
+            Match.value(sortKey),
+            Match.when('name', () => a.name.localeCompare(b.name)),
+            Match.when('file', () => a.file.localeCompare(b.file)),
+            Match.when('selfCost', () => getCost(a, 'self') - getCost(b, 'self')),
+            Match.when('totalCost', () => getCost(a, 'total') - getCost(b, 'total')),
+            Match.when('percent', () => getCost(a, 'total') - getCost(b, 'total')),
+            Match.when('calls', () => a.calls - b.calls),
+            Match.exhaustive,
+          );
+          return sortDir === 'desc' ? -cmp : cmp;
+        }),
     );
   },
 
@@ -162,36 +171,36 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     pipe(
       extractData(get().profile),
       Option.map((data) => data.totalCosts?.[get().selectedMetricIndex] ?? data.totalCost),
-      Option.getOrElse(() => 0)
+      Option.getOrElse(() => 0),
     ),
 
   getEventTypes: () =>
     pipe(
       extractData(get().profile),
       Option.map((data) => data.eventTypes ?? ['Time']),
-      Option.getOrElse((): readonly string[] => ['Time'])
+      Option.getOrElse((): readonly string[] => ['Time']),
     ),
 
   getCurrentMetric: () =>
-    pipe(
-      get().getEventTypes(),
-      (types) => types[get().selectedMetricIndex] ?? 'Time'
-    ),
+    pipe(get().getEventTypes(), (types) => types[get().selectedMetricIndex] ?? 'Time'),
 
   getEdges: () =>
     pipe(
       extractData(get().profile),
       Option.map((data) => data.edges),
-      Option.getOrElse((): readonly CallEdge[] => [])
+      Option.getOrElse((): readonly CallEdge[] => []),
     ),
 }));
 
 export const useFunctionCost = () => {
   const metricIndex = useProfileStore((s) => s.selectedMetricIndex);
 
-  return useMemo(() => ({
-    getSelfCost: (fn: FunctionStats) => fn.selfCosts?.[metricIndex] ?? fn.selfCost,
-    getTotalCost: (fn: FunctionStats) => fn.totalCosts?.[metricIndex] ?? fn.totalCost,
-    getEdgeCost: (edge: CallEdge) => edge.inclusiveCosts?.[metricIndex] ?? edge.inclusive,
-  }), [metricIndex]);
+  return useMemo(
+    () => ({
+      getSelfCost: (fn: FunctionStats) => fn.selfCosts?.[metricIndex] ?? fn.selfCost,
+      getTotalCost: (fn: FunctionStats) => fn.totalCosts?.[metricIndex] ?? fn.totalCost,
+      getEdgeCost: (edge: CallEdge) => edge.inclusiveCosts?.[metricIndex] ?? edge.inclusive,
+    }),
+    [metricIndex],
+  );
 };

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import path from 'path';
-import { ProfileContext } from './profileContext';
+import { ProfileContext } from './profile-context';
+import { findHotPathIds } from './hot-path';
 import type { FunctionId, FunctionStats, ProfileData } from './types';
 
 const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
@@ -160,7 +161,10 @@ export class LineViewDecorations implements vscode.Disposable {
       return;
     }
 
-    const fileKey = this.resolveFileKey(editor.document.uri.fsPath, Array.from(indices.functionsByFile.keys()));
+    const fileKey = this.resolveFileKey(
+      editor.document.uri.fsPath,
+      Array.from(indices.functionsByFile.keys()),
+    );
     if (!fileKey) {
       this.clearEditor(editor);
       return;
@@ -204,11 +208,11 @@ export class LineViewDecorations implements vscode.Disposable {
     const inlineOptions: vscode.DecorationOptions[] = [];
     const heatOptions: vscode.DecorationOptions[][] = Array.from(
       { length: HEAT_BUCKETS },
-      () => []
+      () => [],
     );
     const overviewOptions: vscode.DecorationOptions[][] = Array.from(
       { length: HEAT_BUCKETS },
-      () => []
+      () => [],
     );
     const hotPathOptions: vscode.DecorationOptions[] = [];
 
@@ -264,67 +268,22 @@ export class LineViewDecorations implements vscode.Disposable {
   private getHotPathIds(
     data: ProfileData,
     metricIndex: number,
-    startId: FunctionId | null
+    startId: FunctionId | null,
   ): ReadonlySet<FunctionId> {
     if (
-      this.hotPathCache?.data === data
-      && this.hotPathCache.metricIndex === metricIndex
-      && this.hotPathCache.startId === startId
+      this.hotPathCache?.data === data &&
+      this.hotPathCache.metricIndex === metricIndex &&
+      this.hotPathCache.startId === startId
     ) {
       return this.hotPathCache.ids;
     }
 
-    const edgesByCaller = new Map<FunctionId, { calleeId: FunctionId; cost: number }[]>();
-    for (const edge of data.edges) {
-      const cost = edge.inclusiveCosts?.[metricIndex] ?? edge.inclusive;
-      const list = edgesByCaller.get(edge.callerId) ?? [];
-      list.push({ calleeId: edge.calleeId, cost });
-      edgesByCaller.set(edge.callerId, list);
-    }
-
-    let resolvedStartId = startId;
-    if (resolvedStartId !== null && !data.stats.has(resolvedStartId)) {
-      resolvedStartId = null;
-    }
-
-    if (resolvedStartId === null) {
-      let maxCost = -1;
-      for (const stats of data.stats.values()) {
-        const cost = stats.totalCosts?.[metricIndex] ?? stats.totalCost;
-        if (cost > maxCost) {
-          maxCost = cost;
-          resolvedStartId = stats.id;
-        }
-      }
-    }
-
-    const ids = new Set<FunctionId>();
-    if (resolvedStartId === null) {
-      this.hotPathCache = {
-        data,
-        metricIndex,
-        startId: resolvedStartId,
-        ids,
-      };
-      return ids;
-    }
-
-    let current: FunctionId | null = resolvedStartId;
-    while (current && !ids.has(current)) {
-      ids.add(current);
-      const outgoing = edgesByCaller.get(current);
-      if (!outgoing || outgoing.length === 0) break;
-      let best = outgoing[0];
-      for (const edge of outgoing) {
-        if (edge.cost > best.cost) best = edge;
-      }
-      current = best.calleeId;
-    }
+    const ids = findHotPathIds(data, metricIndex, startId);
 
     this.hotPathCache = {
       data,
       metricIndex,
-      startId: resolvedStartId,
+      startId,
       ids,
     };
     return ids;

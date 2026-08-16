@@ -1,5 +1,5 @@
-import { useRef, useState, useEffect, memo } from 'react';
-import { pipe, Option } from 'effect';
+import { useCallback, useState, memo } from 'react';
+import { pipe } from 'effect';
 import { LAYOUT } from '../constants';
 import { formatCost, formatPercent } from '../utils';
 
@@ -11,39 +11,41 @@ interface TooltipProps {
   readonly totalCost: number;
 }
 
-const clamp = (min: number, max: number) => (value: number): number =>
-  Math.max(min, Math.min(max, value));
+const clamp =
+  (min: number, max: number) =>
+  (value: number): number =>
+    Math.max(min, Math.min(max, value));
 
 export const Tooltip = memo(function Tooltip({ x, y, name, cost, totalCost }: TooltipProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState({ left: x + LAYOUT.TOOLTIP_OFFSET, top: y + LAYOUT.TOOLTIP_OFFSET });
+  const [position, setPosition] = useState({
+    left: x + LAYOUT.TOOLTIP_OFFSET,
+    top: y + LAYOUT.TOOLTIP_OFFSET,
+  });
 
-  useEffect(() =>
-    pipe(
-      Option.fromNullable(ref.current),
-      Option.map((tooltip) => {
-        const rect = tooltip.getBoundingClientRect();
-        const { innerWidth: vw, innerHeight: vh } = window;
+  const ref = useCallback(
+    (tooltip: HTMLDivElement | null) => {
+      if (!tooltip) return;
 
-        const left = pipe(
-          x + rect.width > vw - LAYOUT.TOOLTIP_MARGIN
-            ? x - rect.width - LAYOUT.TOOLTIP_OFFSET
-            : x + LAYOUT.TOOLTIP_OFFSET,
-          clamp(LAYOUT.TOOLTIP_MARGIN, vw - rect.width - LAYOUT.TOOLTIP_MARGIN)
-        );
+      const rect = tooltip.getBoundingClientRect();
+      const { innerWidth: vw, innerHeight: vh } = window;
 
-        const top = pipe(
-          y + rect.height > vh - LAYOUT.TOOLTIP_MARGIN
-            ? y - rect.height - LAYOUT.TOOLTIP_OFFSET
-            : y + LAYOUT.TOOLTIP_OFFSET,
-          clamp(LAYOUT.TOOLTIP_MARGIN, vh - rect.height - LAYOUT.TOOLTIP_MARGIN)
-        );
+      const left = pipe(
+        x + rect.width > vw - LAYOUT.TOOLTIP_MARGIN
+          ? x - rect.width - LAYOUT.TOOLTIP_OFFSET
+          : x + LAYOUT.TOOLTIP_OFFSET,
+        clamp(LAYOUT.TOOLTIP_MARGIN, vw - rect.width - LAYOUT.TOOLTIP_MARGIN),
+      );
 
-        setPosition({ left, top });
-      }),
-      Option.getOrElse(() => undefined)
-    ),
-    [x, y]
+      const top = pipe(
+        y + rect.height > vh - LAYOUT.TOOLTIP_MARGIN
+          ? y - rect.height - LAYOUT.TOOLTIP_OFFSET
+          : y + LAYOUT.TOOLTIP_OFFSET,
+        clamp(LAYOUT.TOOLTIP_MARGIN, vh - rect.height - LAYOUT.TOOLTIP_MARGIN),
+      );
+
+      setPosition({ left, top });
+    },
+    [x, y],
   );
 
   return (

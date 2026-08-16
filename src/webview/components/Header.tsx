@@ -1,11 +1,8 @@
-import { memo, useState, useCallback, useRef, useEffect, type ChangeEvent } from 'react';
-import { pipe, Option } from 'effect';
+import { memo, useState, useCallback, type ChangeEvent } from 'react';
 import { useProfileStore, useFunctionCost } from '../store';
-import { useFilteredStats, useTotalCost, useEventTypes, useCurrentMetric, useDebouncedCallback } from '../hooks';
+import { useFilteredStats, useTotalCost, useEventTypes, useCurrentMetric } from '../hooks';
 import { formatCost, exportCSV, exportJSON } from '../utils';
-
-const getVscode = (): Option.Option<{ postMessage: (m: unknown) => void }> =>
-  Option.fromNullable((window as unknown as { vscode?: { postMessage: (m: unknown) => void } }).vscode);
+import { postWebviewMessage } from '../vscode-bridge';
 
 export const Header = memo(function Header() {
   const filename = useProfileStore((s) => s.filename);
@@ -13,7 +10,6 @@ export const Header = memo(function Header() {
   const setSearch = useProfileStore((s) => s.setSearch);
   const selectedMetricIndex = useProfileStore((s) => s.selectedMetricIndex);
   const setMetricIndex = useProfileStore((s) => s.setMetricIndex);
-  const searchRef = useRef<HTMLInputElement>(null);
   const [exportOpen, setExportOpen] = useState(false);
 
   const eventTypes = useEventTypes();
@@ -22,72 +18,49 @@ export const Header = memo(function Header() {
   const filteredStats = useFilteredStats();
   const { getSelfCost, getTotalCost } = useFunctionCost();
 
-  const [localSearch, setLocalSearch] = useState(search);
-  const debouncedSetSearch = useDebouncedCallback(setSearch, 200);
-
-  useEffect(() => {
-    setLocalSearch(search);
-  }, [search]);
-
-  // Auto-focus search on profile load
-  useEffect(() => {
-    const timer = setTimeout(() => searchRef.current?.focus(), 100);
-    return () => clearTimeout(timer);
-  }, []);
-
   const onSearchChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
-      setLocalSearch(value);
-      debouncedSetSearch(value);
-    },
-    [debouncedSetSearch]
+    (event: ChangeEvent<HTMLInputElement>) => setSearch(event.target.value),
+    [setSearch],
   );
 
   const onMetricChange = useCallback(
     (e: ChangeEvent<HTMLSelectElement>) => setMetricIndex(parseInt(e.target.value, 10)),
-    [setMetricIndex]
+    [setMetricIndex],
   );
 
   const onExport = useCallback(
     (format: 'csv' | 'json') => {
-      const getCosts = (fn: typeof filteredStats[number]) => ({
+      const getCosts = (fn: (typeof filteredStats)[number]) => ({
         selfCost: getSelfCost(fn),
         totalCost: getTotalCost(fn),
       });
-      const content = format === 'csv'
-        ? exportCSV(filteredStats, getCosts)
-        : exportJSON(filteredStats, getCosts);
+      const content =
+        format === 'csv' ? exportCSV(filteredStats, getCosts) : exportJSON(filteredStats, getCosts);
 
-      pipe(
-        getVscode(),
-        Option.map((vs) => vs.postMessage({ type: 'export', format, content }))
-      );
+      postWebviewMessage({ type: 'export', format, content });
       setExportOpen(false);
     },
-    [filteredStats, getSelfCost, getTotalCost]
+    [filteredStats, getSelfCost, getTotalCost],
   );
 
   return (
     <div className="header">
       <h1>{filename}</h1>
       <input
-        ref={searchRef}
+        autoFocus
         className="search-box"
         type="text"
         placeholder="Search functions..."
         aria-label="Search functions by name or file path"
-        value={localSearch}
+        value={search}
         onChange={onSearchChange}
       />
       {eventTypes.length > 1 && (
-        <select
-          className="metric-selector"
-          value={selectedMetricIndex}
-          onChange={onMetricChange}
-        >
+        <select className="metric-selector" value={selectedMetricIndex} onChange={onMetricChange}>
           {eventTypes.map((name, idx) => (
-            <option key={idx} value={idx}>{name}</option>
+            <option key={name} value={idx}>
+              {name}
+            </option>
           ))}
         </select>
       )}
@@ -101,8 +74,12 @@ export const Header = memo(function Header() {
         </button>
         {exportOpen && (
           <div className="export-dropdown">
-            <button className="export-option" onClick={() => onExport('csv')}>Export as CSV</button>
-            <button className="export-option" onClick={() => onExport('json')}>Export as JSON</button>
+            <button className="export-option" onClick={() => onExport('csv')}>
+              Export as CSV
+            </button>
+            <button className="export-option" onClick={() => onExport('json')}>
+              Export as JSON
+            </button>
           </div>
         )}
       </div>

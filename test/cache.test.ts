@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import * as fs from 'fs';
-import type { SerializedProfileData } from '../src/types';
+import { FunctionId, type SerializedProfileData } from '../src/types';
 
 class MockMemento {
   private data = new Map<string, unknown>();
@@ -31,21 +31,27 @@ const loadProfileCache = async () => {
 describe('ProfileCache', () => {
   const testFilePath = '/test/profile.callgrind';
   const mockData: SerializedProfileData = {
-    functions: [[1, { id: 1, name: 'main', file: 'test.php', line: 1 }]],
+    functions: [[1, { id: FunctionId(1), name: 'main', file: 'test.php', line: 1 }]],
     edges: [],
-    stats: [[1, {
-      id: 1,
-      name: 'main',
-      file: 'test.php',
-      line: 1,
-      selfCost: 100,
-      totalCost: 100,
-      selfCosts: [100],
-      totalCosts: [100],
-      calls: 1,
-      callers: [],
-      callees: [],
-    }]],
+    stats: [
+      [
+        1,
+        {
+          id: FunctionId(1),
+          name: 'main',
+          file: 'test.php',
+          line: 1,
+          selfCost: 100,
+          totalCost: 100,
+          selfCosts: [100],
+          totalCosts: [100],
+          lineCosts: [],
+          calls: 1,
+          callers: [],
+          callees: [],
+        },
+      ],
+    ],
     totalCost: 100,
     eventType: 'Time',
     eventTypes: ['Time'],

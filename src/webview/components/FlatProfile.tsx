@@ -1,19 +1,24 @@
-import { useCallback, useState, useEffect, useRef, memo, type CSSProperties, type KeyboardEvent, type MouseEvent } from 'react';
+import {
+  useCallback,
+  useState,
+  useRef,
+  memo,
+  type CSSProperties,
+  type KeyboardEvent,
+  type MouseEvent,
+} from 'react';
 import { FixedSizeList as List } from 'react-window';
-import { pipe, Option } from 'effect';
 import { useProfileStore, useFunctionCost, type SortKey } from '../store';
 import { useResizeObserver, useFilteredStats, useTotalCost } from '../hooks';
 import { formatCost, shortenPath, calculatePercent } from '../utils';
 import { LAYOUT } from '../constants';
 import type { FunctionStats } from '../../types';
+import { postWebviewMessage } from '../vscode-bridge';
 
 const copyToClipboard = (text: string, e: MouseEvent) => {
   e.stopPropagation();
   navigator.clipboard.writeText(text);
 };
-
-const getVscode = (): Option.Option<{ postMessage: (m: unknown) => void }> =>
-  Option.fromNullable((window as unknown as { vscode?: { postMessage: (m: unknown) => void } }).vscode);
 
 interface RowProps {
   readonly index: number;
@@ -25,7 +30,15 @@ interface RowProps {
   readonly onSelectFunction: (id: number) => void;
 }
 
-const Row = memo(function Row({ index, style, stats, totalCost, isFocused, onOpenFile, onSelectFunction }: RowProps) {
+const Row = memo(function Row({
+  index,
+  style,
+  stats,
+  totalCost,
+  isFocused,
+  onOpenFile,
+  onSelectFunction,
+}: RowProps) {
   const { getSelfCost, getTotalCost } = useFunctionCost();
   const fn = stats[index];
   const selfCost = getSelfCost(fn);
@@ -40,18 +53,50 @@ const Row = memo(function Row({ index, style, stats, totalCost, isFocused, onOpe
       aria-rowindex={index + 2}
       tabIndex={isFocused ? 0 : -1}
     >
-      <div role="gridcell" className="virtual-cell function-name" onClick={() => onSelectFunction(fn.id)} title={`${fn.name} - Click to view in Call Graph`}>
+      <div
+        role="gridcell"
+        className="virtual-cell function-name"
+        onClick={() => onSelectFunction(fn.id)}
+        title={`${fn.name} - Click to view in Call Graph`}
+      >
         {fn.name}
-        <button className="copy-btn" onClick={(e) => copyToClipboard(fn.name, e)} aria-label={`Copy function name ${fn.name}`} title="Copy function name">⧉</button>
+        <button
+          className="copy-btn"
+          onClick={(e) => copyToClipboard(fn.name, e)}
+          aria-label={`Copy function name ${fn.name}`}
+          title="Copy function name"
+        >
+          ⧉
+        </button>
       </div>
-      <div role="gridcell" className="virtual-cell file-path" onClick={() => onOpenFile(fn.file, fn.line)} title={`${fn.file} - Click to open file`}>
+      <div
+        role="gridcell"
+        className="virtual-cell file-path"
+        onClick={() => onOpenFile(fn.file, fn.line)}
+        title={`${fn.file} - Click to open file`}
+      >
         {shortenPath(fn.file)}
-        <button className="copy-btn" onClick={(e) => copyToClipboard(fn.file, e)} aria-label={`Copy file path ${fn.file}`} title="Copy file path">⧉</button>
+        <button
+          className="copy-btn"
+          onClick={(e) => copyToClipboard(fn.file, e)}
+          aria-label={`Copy file path ${fn.file}`}
+          title="Copy file path"
+        >
+          ⧉
+        </button>
       </div>
-      <div role="gridcell" className="virtual-cell number">{formatCost(selfCost)}</div>
-      <div role="gridcell" className="virtual-cell number">{formatCost(fnTotalCost)}</div>
-      <div role="gridcell" className="virtual-cell number">{fn.calls.toLocaleString()}</div>
-      <div role="gridcell" className="virtual-cell percent">{percent.toFixed(1)}%</div>
+      <div role="gridcell" className="virtual-cell number">
+        {formatCost(selfCost)}
+      </div>
+      <div role="gridcell" className="virtual-cell number">
+        {formatCost(fnTotalCost)}
+      </div>
+      <div role="gridcell" className="virtual-cell number">
+        {fn.calls.toLocaleString()}
+      </div>
+      <div role="gridcell" className="virtual-cell percent">
+        {percent.toFixed(1)}%
+      </div>
       <div role="gridcell" className="virtual-cell bar-cell">
         <div className="bar" style={{ width: `${percent}%` }} />
       </div>
@@ -59,7 +104,11 @@ const Row = memo(function Row({ index, style, stats, totalCost, isFocused, onOpe
   );
 });
 
-const ariaSort = (key: SortKey, sortKey: SortKey, sortDir: string): 'ascending' | 'descending' | 'none' =>
+const ariaSort = (
+  key: SortKey,
+  sortKey: SortKey,
+  sortDir: string,
+): 'ascending' | 'descending' | 'none' =>
   sortKey === key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none';
 
 export const FlatProfile = memo(function FlatProfile() {
@@ -76,48 +125,46 @@ export const FlatProfile = memo(function FlatProfile() {
   const setActiveTab = useProfileStore((s) => s.setActiveTab);
 
   const onOpenFile = useCallback(
-    (path: string, line: number) =>
-      pipe(
-        getVscode(),
-        Option.map((vs) => vs.postMessage({ type: 'openFile', path, line }))
-      ),
-    []
+    (path: string, line: number) => postWebviewMessage({ type: 'openFile', path, line }),
+    [],
   );
 
-  const onSelectFunction = useCallback((id: number) => {
-    selectFunction(id);
-    setActiveTab('callgraph');
-  }, [selectFunction, setActiveTab]);
+  const onSelectFunction = useCallback(
+    (id: number) => {
+      selectFunction(id);
+      setActiveTab('callgraph');
+    },
+    [selectFunction, setActiveTab],
+  );
 
   const sortClass = useCallback(
-    (key: SortKey) => sortKey === key ? (sortDir === 'asc' ? 'sorted asc' : 'sorted') : '',
-    [sortKey, sortDir]
+    (key: SortKey) => (sortKey === key ? (sortDir === 'asc' ? 'sorted asc' : 'sorted') : ''),
+    [sortKey, sortDir],
   );
 
-  useEffect(() => {
-    if (focusedIndex >= 0) {
-      listRef.current?.scrollToItem(focusedIndex, 'smart');
-    }
-  }, [focusedIndex]);
+  const focusRow = useCallback((index: number) => {
+    setFocusedIndex(index);
+    if (index >= 0) listRef.current?.scrollToItem(index, 'smart');
+  }, []);
 
   const onKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
-          setFocusedIndex((prev) => Math.min(prev + 1, stats.length - 1));
+          focusRow(Math.min(focusedIndex + 1, stats.length - 1));
           break;
         case 'ArrowUp':
           e.preventDefault();
-          setFocusedIndex((prev) => Math.max(prev - 1, 0));
+          focusRow(Math.max(focusedIndex - 1, 0));
           break;
         case 'Home':
           e.preventDefault();
-          setFocusedIndex(0);
+          focusRow(0);
           break;
         case 'End':
           e.preventDefault();
-          setFocusedIndex(stats.length - 1);
+          focusRow(stats.length - 1);
           break;
         case 'Enter':
         case ' ':
@@ -128,7 +175,7 @@ export const FlatProfile = memo(function FlatProfile() {
           break;
       }
     },
-    [stats, focusedIndex, onSelectFunction]
+    [stats, focusedIndex, onSelectFunction, focusRow],
   );
 
   return (
@@ -141,15 +188,65 @@ export const FlatProfile = memo(function FlatProfile() {
       onKeyDown={onKeyDown}
     >
       <div className="virtual-header" role="row" aria-rowindex={1}>
-        <div role="columnheader" aria-sort={ariaSort('name', sortKey, sortDir)} className={`virtual-cell ${sortClass('name')}`} onClick={() => setSort('name')}>Function</div>
-        <div role="columnheader" aria-sort={ariaSort('file', sortKey, sortDir)} className={`virtual-cell ${sortClass('file')}`} onClick={() => setSort('file')}>File</div>
-        <div role="columnheader" aria-sort={ariaSort('selfCost', sortKey, sortDir)} className={`virtual-cell number ${sortClass('selfCost')}`} onClick={() => setSort('selfCost')}>Self</div>
-        <div role="columnheader" aria-sort={ariaSort('totalCost', sortKey, sortDir)} className={`virtual-cell number ${sortClass('totalCost')}`} onClick={() => setSort('totalCost')}>Total</div>
-        <div role="columnheader" aria-sort={ariaSort('calls', sortKey, sortDir)} className={`virtual-cell number ${sortClass('calls')}`} onClick={() => setSort('calls')}>Calls</div>
-        <div role="columnheader" aria-sort={ariaSort('percent', sortKey, sortDir)} className={`virtual-cell percent ${sortClass('percent')}`} onClick={() => setSort('percent')}>% Total</div>
-        <div role="columnheader" className="virtual-cell bar-cell"><span className="sr-only">Bar chart</span></div>
+        <div
+          role="columnheader"
+          aria-sort={ariaSort('name', sortKey, sortDir)}
+          className={`virtual-cell ${sortClass('name')}`}
+          onClick={() => setSort('name')}
+        >
+          Function
+        </div>
+        <div
+          role="columnheader"
+          aria-sort={ariaSort('file', sortKey, sortDir)}
+          className={`virtual-cell ${sortClass('file')}`}
+          onClick={() => setSort('file')}
+        >
+          File
+        </div>
+        <div
+          role="columnheader"
+          aria-sort={ariaSort('selfCost', sortKey, sortDir)}
+          className={`virtual-cell number ${sortClass('selfCost')}`}
+          onClick={() => setSort('selfCost')}
+        >
+          Self
+        </div>
+        <div
+          role="columnheader"
+          aria-sort={ariaSort('totalCost', sortKey, sortDir)}
+          className={`virtual-cell number ${sortClass('totalCost')}`}
+          onClick={() => setSort('totalCost')}
+        >
+          Total
+        </div>
+        <div
+          role="columnheader"
+          aria-sort={ariaSort('calls', sortKey, sortDir)}
+          className={`virtual-cell number ${sortClass('calls')}`}
+          onClick={() => setSort('calls')}
+        >
+          Calls
+        </div>
+        <div
+          role="columnheader"
+          aria-sort={ariaSort('percent', sortKey, sortDir)}
+          className={`virtual-cell percent ${sortClass('percent')}`}
+          onClick={() => setSort('percent')}
+        >
+          % Total
+        </div>
+        <div role="columnheader" className="virtual-cell bar-cell">
+          <span className="sr-only">Bar chart</span>
+        </div>
       </div>
-      <List ref={listRef} height={height || 400} itemCount={stats.length} itemSize={LAYOUT.ROW_HEIGHT} width="100%">
+      <List
+        ref={listRef}
+        height={height || 400}
+        itemCount={stats.length}
+        itemSize={LAYOUT.ROW_HEIGHT}
+        width="100%"
+      >
         {({ index, style }) => (
           <Row
             index={index}

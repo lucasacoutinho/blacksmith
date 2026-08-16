@@ -1,12 +1,12 @@
-import { useRef, useState, useEffect, useMemo, useCallback, memo, type MouseEvent } from 'react';
-import { pipe, Array as A, Option, Match } from 'effect';
+import { useRef, useState, useMemo, useCallback, memo, type MouseEvent } from 'react';
+import { pipe, Array as A, Option } from 'effect';
 import { useProfileStore, useFunctionCost } from '../store';
 import { useResizeObserver, useStatsData, useEdges, useEdgeIndex, useTotalCost } from '../hooks';
 import { getCostColor } from '../utils';
 import { LAYOUT, LIMITS } from '../constants';
 import { Tooltip } from './Tooltip';
 import type { FunctionStats, CallEdge } from '../../types';
-import type { EdgeIndex } from '../utils/edgeIndex';
+import type { EdgeIndex } from '../utils/edge-index';
 
 interface FlameFrame {
   readonly id: number;
@@ -25,13 +25,13 @@ interface ZoomState {
 const findRoots = (
   stats: readonly FunctionStats[],
   edges: readonly CallEdge[],
-  getTotalCost: (fn: FunctionStats) => number
+  getTotalCost: (fn: FunctionStats) => number,
 ): readonly FunctionStats[] => {
   const hasCallers = new Set(edges.map((e) => e.calleeId));
   const roots = pipe(
     stats,
     A.filter((s) => !hasCallers.has(s.id)),
-    (arr) => [...arr].sort((a, b) => getTotalCost(b) - getTotalCost(a))
+    (arr) => [...arr].sort((a, b) => getTotalCost(b) - getTotalCost(a)),
   );
   return roots.length > 0
     ? roots
@@ -44,7 +44,7 @@ const buildFrames = (
   edgeIndex: EdgeIndex,
   statsMap: ReadonlyMap<number, FunctionStats>,
   getTotalCost: (fn: FunctionStats) => number,
-  getEdgeCost: (edge: CallEdge) => number
+  getEdgeCost: (edge: CallEdge) => number,
 ): readonly FlameFrame[] => {
   const roots = findRoots(stats, edges, getTotalCost);
   const rootTotalCost = roots.reduce((sum, r) => sum + getTotalCost(r), 0);
@@ -61,27 +61,26 @@ const buildFrames = (
   }
 
   while (stack.length > 0) {
-    const { fnId, x, width, depth } = stack.pop()!;
+    const { fnId, x: frameX, width, depth } = stack.pop()!;
     if (visited.has(fnId)) continue;
     visited.add(fnId);
 
     const fn = statsMap.get(fnId);
     if (!fn) continue;
 
-    result.push({ id: fnId, name: fn.name, x, width, depth, cost: getTotalCost(fn) });
+    result.push({ id: fnId, name: fn.name, x: frameX, width, depth, cost: getTotalCost(fn) });
 
     const calleeEdges = edgeIndex.get(fnId);
     if (!calleeEdges || calleeEdges.length === 0) continue;
 
     const sorted = [...calleeEdges].sort((a, b) => getEdgeCost(a) - getEdgeCost(b));
     const totalCalleeCost = sorted.reduce((sum, e) => sum + getEdgeCost(e), 0);
-    let currentX = x;
+    let currentX = frameX;
 
     for (const edge of sorted) {
       const edgeCost = getEdgeCost(edge);
-      const calleeWidth = totalCalleeCost > 0
-        ? (edgeCost / totalCalleeCost) * width
-        : width / sorted.length;
+      const calleeWidth =
+        totalCalleeCost > 0 ? (edgeCost / totalCalleeCost) * width : width / sorted.length;
 
       if (calleeWidth > LIMITS.MIN_FRAME_WIDTH) {
         stack.push({ fnId: edge.calleeId, x: currentX, width: calleeWidth, depth: depth + 1 });
@@ -98,7 +97,7 @@ const findFrameAtPosition = (
   zoom: ZoomState,
   canvasRect: DOMRect,
   clientX: number,
-  clientY: number
+  clientY: number,
 ): Option.Option<FlameFrame> => {
   const x = (clientX - canvasRect.left) / canvasRect.width;
   const y = clientY - canvasRect.top;
@@ -110,7 +109,7 @@ const findFrameAtPosition = (
       const frameX = (f.x - zoom.x) / zoom.width;
       const frameW = f.width / zoom.width;
       return f.depth === depth && x >= frameX && x < frameX + frameW;
-    })
+    }),
   );
 };
 
@@ -120,9 +119,10 @@ const drawFlameGraph = (
   zoom: ZoomState,
   totalCost: number,
   width: number,
-  height: number
+  height: number,
 ): void => {
-  const bgColor = getComputedStyle(document.body).getPropertyValue('--vscode-editor-background') || '#1e1e1e';
+  const bgColor =
+    getComputedStyle(document.body).getPropertyValue('--vscode-editor-background') || '#1e1e1e';
   ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, width, height);
 
@@ -147,9 +147,8 @@ const drawFlameGraph = (
       ctx.textBaseline = 'middle';
 
       const maxChars = Math.floor((w - 8) / 7);
-      const displayText = frame.name.length > maxChars
-        ? `${frame.name.slice(0, maxChars - 2)}..`
-        : frame.name;
+      const displayText =
+        frame.name.length > maxChars ? `${frame.name.slice(0, maxChars - 2)}..` : frame.name;
 
       ctx.fillText(displayText, x + 4, y + LAYOUT.FRAME_HEIGHT / 2);
     }
@@ -157,7 +156,7 @@ const drawFlameGraph = (
 };
 
 export const FlameGraph = memo(function FlameGraph() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [containerRef, dimensions] = useResizeObserver<HTMLDivElement>();
   const [tooltip, setTooltip] = useState<{ x: number; y: number; frame: FlameFrame } | null>(null);
   const [zoom, setZoom] = useState<ZoomState>({ x: 0, width: 1 });
@@ -171,35 +170,28 @@ export const FlameGraph = memo(function FlameGraph() {
 
   const frames = useMemo(
     () => buildFrames(stats, edges, edgeIndex, statsMap, getTotalCost, getEdgeCost),
-    [stats, edges, edgeIndex, statsMap, getTotalCost, getEdgeCost]
+    [stats, edges, edgeIndex, statsMap, getTotalCost, getEdgeCost],
   );
 
-  const maxDepth = useMemo(
-    () => frames.reduce((max, f) => Math.max(max, f.depth), 0),
-    [frames]
-  );
+  const maxDepth = useMemo(() => frames.reduce((max, f) => Math.max(max, f.depth), 0), [frames]);
 
-  useEffect(() =>
-    pipe(
-      Option.fromNullable(canvasRef.current),
-      Option.filter(() => dimensions.width > 0),
-      Option.flatMap((canvas) =>
-        pipe(
-          Option.fromNullable(canvas.getContext('2d')),
-          Option.map((ctx) => {
-            const dpr = window.devicePixelRatio || 1;
-            canvas.width = dimensions.width * dpr;
-            canvas.height = dimensions.height * dpr;
-            canvas.style.width = `${dimensions.width}px`;
-            canvas.style.height = `${dimensions.height}px`;
-            ctx.scale(dpr, dpr);
-            drawFlameGraph(ctx, frames, zoom, totalCost, dimensions.width, dimensions.height);
-          })
-        )
-      ),
-      Option.getOrElse(() => undefined)
-    ),
-    [frames, zoom, totalCost, dimensions]
+  const drawCanvas = useCallback(
+    (canvas: HTMLCanvasElement | null) => {
+      canvasRef.current = canvas;
+      if (!canvas || dimensions.width <= 0 || dimensions.height <= 0) return;
+
+      const context = canvas.getContext('2d');
+      if (!context) return;
+
+      const pixelRatio = window.devicePixelRatio || 1;
+      canvas.width = dimensions.width * pixelRatio;
+      canvas.height = dimensions.height * pixelRatio;
+      canvas.style.width = `${dimensions.width}px`;
+      canvas.style.height = `${dimensions.height}px`;
+      context.scale(pixelRatio, pixelRatio);
+      drawFlameGraph(context, frames, zoom, totalCost, dimensions.width, dimensions.height);
+    },
+    [frames, zoom, totalCost, dimensions.width, dimensions.height],
   );
 
   const findFrame = useCallback(
@@ -208,7 +200,7 @@ export const FlameGraph = memo(function FlameGraph() {
       if (!canvas) return Option.none();
       return findFrameAtPosition(frames, zoom, canvas.getBoundingClientRect(), clientX, clientY);
     },
-    [frames, zoom]
+    [frames, zoom],
   );
 
   const onMouseMove = useCallback(
@@ -218,10 +210,10 @@ export const FlameGraph = memo(function FlameGraph() {
         Option.match({
           onNone: () => setTooltip(null),
           onSome: (frame) => setTooltip({ x: e.clientX, y: e.clientY, frame }),
-        })
+        }),
       );
     },
-    [findFrame]
+    [findFrame],
   );
 
   const onClick = useCallback(
@@ -231,10 +223,10 @@ export const FlameGraph = memo(function FlameGraph() {
         Option.map((frame) => {
           setZoom({ x: frame.x, width: frame.width });
           selectFunction(frame.id);
-        })
+        }),
       );
     },
-    [findFrame, selectFunction]
+    [findFrame, selectFunction],
   );
 
   const onReset = useCallback(() => setZoom({ x: 0, width: 1 }), []);
@@ -242,12 +234,16 @@ export const FlameGraph = memo(function FlameGraph() {
   return (
     <div className="flamegraph-container">
       <div className="flamegraph-controls">
-        <button className="callgraph-back" onClick={onReset}>Reset Zoom</button>
-        <span className="stats">{frames.length} frames | Max depth: {maxDepth + 1}</span>
+        <button className="callgraph-back" onClick={onReset}>
+          Reset Zoom
+        </button>
+        <span className="stats">
+          {frames.length} frames | Max depth: {maxDepth + 1}
+        </span>
       </div>
       <div className="flamegraph-canvas-container" ref={containerRef}>
         <canvas
-          ref={canvasRef}
+          ref={drawCanvas}
           className="flamegraph-canvas"
           role="img"
           aria-label={`Flame graph visualization with ${frames.length} frames, max depth ${maxDepth + 1}`}
@@ -257,7 +253,13 @@ export const FlameGraph = memo(function FlameGraph() {
         />
       </div>
       {tooltip && (
-        <Tooltip x={tooltip.x} y={tooltip.y} name={tooltip.frame.name} cost={tooltip.frame.cost} totalCost={totalCost} />
+        <Tooltip
+          x={tooltip.x}
+          y={tooltip.y}
+          name={tooltip.frame.name}
+          cost={tooltip.frame.cost}
+          totalCost={totalCost}
+        />
       )}
     </div>
   );

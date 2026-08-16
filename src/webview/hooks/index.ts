@@ -1,5 +1,4 @@
-export { useResizeObserver } from './useResizeObserver';
-export { useDebouncedCallback } from './useDebouncedCallback';
+export { useResizeObserver } from './use-resize-observer';
 export {
   useStats,
   useStatsData,
@@ -11,4 +10,4 @@ export {
   useEdges,
   useEdgeIndex,
   useStatsMap,
-} from './useProfileData';
+} from './use-profile-data';

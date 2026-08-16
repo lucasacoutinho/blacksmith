@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback, memo, type MouseEvent } from 'react';
-import { pipe, Array as A, Option } from 'effect';
+import { pipe, Array as A } from 'effect';
 import { useProfileStore, useFunctionCost } from '../store';
 import { useResizeObserver, useStats, useTotalCost } from '../hooks';
 import { getCostColor, calculatePercent } from '../utils';
@@ -25,14 +25,34 @@ interface TreemapItem {
 const aspectRatio = (size1: number, size2: number): number =>
   Math.max(size1 / size2, size2 / size1);
 
-const worstAspect = (items: readonly TreemapItem[], totalCost: number, rowCost: number, rowSize: number, isHorizontal: boolean, containerSize: number): number =>
-  Math.max(...items.map((item) => {
-    const itemFraction = item.cost / rowCost;
-    const itemSize = isHorizontal ? containerSize * itemFraction : containerSize * itemFraction;
-    return aspectRatio(rowSize, itemSize);
-  }));
+const truncateName = (name: string, width: number): string =>
+  pipe(Math.floor(width / 8), (maxLen) =>
+    name.length > maxLen ? `${name.slice(0, maxLen - 2)}..` : name,
+  );
 
-const squarifyLayout = (items: readonly TreemapItem[], x: number, y: number, width: number, height: number): TreemapRect[] => {
+const worstAspect = (
+  items: readonly TreemapItem[],
+  totalCost: number,
+  rowCost: number,
+  rowSize: number,
+  isHorizontal: boolean,
+  containerSize: number,
+): number =>
+  Math.max(
+    ...items.map((item) => {
+      const itemFraction = item.cost / rowCost;
+      const itemSize = isHorizontal ? containerSize * itemFraction : containerSize * itemFraction;
+      return aspectRatio(rowSize, itemSize);
+    }),
+  );
+
+const squarifyLayout = (
+  items: readonly TreemapItem[],
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): TreemapRect[] => {
   if (items.length === 0 || width <= 0 || height <= 0) return [];
 
   if (items.length === 1) {
@@ -114,14 +134,17 @@ export const CallerMap = memo(function CallerMap() {
       A.filter((f) => f.cost > 0),
       (arr) => [...arr].sort((a, b) => b.cost - a.cost),
       A.take(LIMITS.MAX_TREEMAP_ITEMS),
-      (items) => squarifyLayout(items, 0, 0, dimensions.width, dimensions.height)
+      (items) => squarifyLayout(items, 0, 0, dimensions.width, dimensions.height),
     );
   }, [stats, dimensions, getTotalCost]);
 
-  const onSelect = useCallback((id: number) => {
-    selectFunction(id);
-    setActiveTab('callgraph');
-  }, [selectFunction, setActiveTab]);
+  const onSelect = useCallback(
+    (id: number) => {
+      selectFunction(id);
+      setActiveTab('callgraph');
+    },
+    [selectFunction, setActiveTab],
+  );
 
   const onMouseMove = useCallback((e: MouseEvent, rect: TreemapRect) => {
     setTooltip({ x: e.clientX, y: e.clientY, rect });
@@ -129,15 +152,15 @@ export const CallerMap = memo(function CallerMap() {
 
   const onMouseLeave = useCallback(() => setTooltip(null), []);
 
-  const truncateName = (name: string, width: number): string =>
-    pipe(
-      Math.floor(width / 8),
-      (maxLen) => name.length > maxLen ? `${name.slice(0, maxLen - 2)}..` : name
-    );
-
   return (
     <div className="callermap-container" ref={containerRef}>
-      <svg className="callermap-svg" width={dimensions.width} height={dimensions.height} role="img" aria-label={`Caller map treemap visualization with ${rects.length} functions`}>
+      <svg
+        className="callermap-svg"
+        width={dimensions.width}
+        height={dimensions.height}
+        role="img"
+        aria-label={`Caller map treemap visualization with ${rects.length} functions`}
+      >
         {rects.map((rect) => (
           <g
             key={rect.id}
@@ -156,7 +179,11 @@ export const CallerMap = memo(function CallerMap() {
               className="callermap-rect-bg"
             />
             {rect.width > 60 && rect.height > 30 && (
-              <text x={rect.x + rect.width / 2} y={rect.y + rect.height / 2} className="callermap-text">
+              <text
+                x={rect.x + rect.width / 2}
+                y={rect.y + rect.height / 2}
+                className="callermap-text"
+              >
                 {truncateName(rect.name, rect.width)}
               </text>
             )}
@@ -164,7 +191,13 @@ export const CallerMap = memo(function CallerMap() {
         ))}
       </svg>
       {tooltip && (
-        <Tooltip x={tooltip.x} y={tooltip.y} name={tooltip.rect.name} cost={tooltip.rect.cost} totalCost={totalCost} />
+        <Tooltip
+          x={tooltip.x}
+          y={tooltip.y}
+          name={tooltip.rect.name}
+          cost={tooltip.rect.cost}
+          totalCost={totalCost}
+        />
       )}
     </div>
   );

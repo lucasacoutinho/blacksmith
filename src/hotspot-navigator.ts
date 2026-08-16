@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { ProfileContext } from './profileContext';
-import { LineViewDecorations } from './lineView';
+import { ProfileContext } from './profile-context';
+import { LineViewDecorations } from './line-view';
 import type { FunctionStats } from './types';
 
 const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
@@ -13,12 +13,9 @@ export class HotspotNavigator implements vscode.Disposable {
 
   constructor(
     private readonly profileContext: ProfileContext,
-    private readonly lineView: LineViewDecorations
+    private readonly lineView: LineViewDecorations,
   ) {
-    this.statusBarItem = vscode.window.createStatusBarItem(
-      vscode.StatusBarAlignment.Right,
-      100
-    );
+    this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     this.statusBarItem.command = 'blacksmith.listHotspots';
     this.statusBarItem.tooltip = 'Click to list hotspots';
   }
@@ -54,15 +51,15 @@ export class HotspotNavigator implements vscode.Disposable {
   async previous(): Promise<void> {
     if (this.hotspots.length === 0) return;
 
-    this.currentIndex = this.currentIndex <= 0
-      ? this.hotspots.length - 1
-      : this.currentIndex - 1;
+    this.currentIndex = this.currentIndex <= 0 ? this.hotspots.length - 1 : this.currentIndex - 1;
     await this.navigateToCurrent();
   }
 
   async showQuickPick(): Promise<void> {
     if (this.hotspots.length === 0) {
-      vscode.window.showInformationMessage('Blacksmith: No hotspots available. Open a profile first.');
+      vscode.window.showInformationMessage(
+        'Blacksmith: No hotspots available. Open a profile first.',
+      );
       return;
     }
 
@@ -117,7 +114,7 @@ export class HotspotNavigator implements vscode.Disposable {
         editor.selection = new vscode.Selection(position, position);
         editor.revealRange(
           new vscode.Range(position, position),
-          vscode.TextEditorRevealType.InCenter
+          vscode.TextEditorRevealType.InCenter,
         );
       }
     } catch {

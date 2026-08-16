@@ -32,9 +32,7 @@ describe('callgrind parser', () => {
     it('computes self costs correctly', async () => {
       const data = await parseCallgrindFile(fixturePath);
 
-      const mainStats = Array.from(data.stats.values()).find(
-        (s) => s.name === '{main}'
-      );
+      const mainStats = Array.from(data.stats.values()).find((s) => s.name === '{main}');
       expect(mainStats).toBeDefined();
       expect(mainStats!.selfCost).toBe(500);
     });
@@ -42,9 +40,7 @@ describe('callgrind parser', () => {
     it('tracks call counts', async () => {
       const data = await parseCallgrindFile(fixturePath);
 
-      const pdoStats = Array.from(data.stats.values()).find(
-        (s) => s.name === 'PDO->query'
-      );
+      const pdoStats = Array.from(data.stats.values()).find((s) => s.name === 'PDO->query');
       expect(pdoStats).toBeDefined();
       expect(pdoStats!.calls).toBe(10);
     });
@@ -52,17 +48,15 @@ describe('callgrind parser', () => {
     it('builds call edges', async () => {
       const data = await parseCallgrindFile(fixturePath);
 
-      const serviceId = Array.from(data.functions.entries()).find(
-        ([, f]) => f.name.includes('UserService')
+      const serviceId = Array.from(data.functions.entries()).find(([, f]) =>
+        f.name.includes('UserService'),
       )?.[0];
 
-      const repoId = Array.from(data.functions.entries()).find(
-        ([, f]) => f.name.includes('UserRepository')
+      const repoId = Array.from(data.functions.entries()).find(([, f]) =>
+        f.name.includes('UserRepository'),
       )?.[0];
 
-      const edge = data.edges.find(
-        (e) => e.callerId === serviceId && e.calleeId === repoId
-      );
+      const edge = data.edges.find((e) => e.callerId === serviceId && e.calleeId === repoId);
 
       expect(edge).toBeDefined();
       expect(edge!.calls).toBe(10);
@@ -72,9 +66,7 @@ describe('callgrind parser', () => {
     it('tracks per-line costs', async () => {
       const data = await parseCallgrindFile(fixturePath);
 
-      const mainStats = Array.from(data.stats.values()).find(
-        (s) => s.name === '{main}'
-      );
+      const mainStats = Array.from(data.stats.values()).find((s) => s.name === '{main}');
 
       expect(mainStats).toBeDefined();
       expect(mainStats!.lineCosts.length).toBeGreaterThan(0);
@@ -116,9 +108,7 @@ describe('callgrind parser', () => {
     it('tracks multiple cost metrics', async () => {
       const data = await parseCallgrindFile(fixturePath);
 
-      const mainStats = Array.from(data.stats.values()).find(
-        (s) => s.name === 'main'
-      );
+      const mainStats = Array.from(data.stats.values()).find((s) => s.name === 'main');
       expect(mainStats).toBeDefined();
       expect(mainStats!.selfCosts.length).toBe(3);
     });
@@ -151,19 +141,17 @@ describe('callgrind parser', () => {
       const data = await parseCallgrindFile(fixturePath);
 
       const processDataId = Array.from(data.functions.entries()).find(
-        ([, f]) => f.name === 'process_data'
+        ([, f]) => f.name === 'process_data',
       )?.[0];
 
-      const pandasId = Array.from(data.functions.entries()).find(
-        ([, f]) => f.name.includes('pandas')
+      const pandasId = Array.from(data.functions.entries()).find(([, f]) =>
+        f.name.includes('pandas'),
       )?.[0];
 
       expect(processDataId).toBeDefined();
       expect(pandasId).toBeDefined();
 
-      const edge = data.edges.find(
-        (e) => e.callerId === processDataId && e.calleeId === pandasId
-      );
+      const edge = data.edges.find((e) => e.callerId === processDataId && e.calleeId === pandasId);
       expect(edge).toBeDefined();
     });
   });
@@ -181,9 +169,7 @@ describe('callgrind parser', () => {
     it('tracks costs per metric', async () => {
       const data = await parseCallgrindFile(fixturePath);
 
-      const mainStats = Array.from(data.stats.values()).find(
-        (s) => s.name === '{main}'
-      );
+      const mainStats = Array.from(data.stats.values()).find((s) => s.name === '{main}');
       expect(mainStats).toBeDefined();
       expect(mainStats!.selfCosts.length).toBe(2);
       expect(mainStats!.totalCosts.length).toBe(2);

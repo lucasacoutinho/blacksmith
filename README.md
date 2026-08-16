@@ -1,67 +1,63 @@
-# Blacksmith
+<div align="center">
+  <a href="https://marketplace.visualstudio.com/items?itemName=lucasalvcoutinho.blacksmith">
+    <img alt="Blacksmith" src="./icon.png" height="128">
+  </a>
+  <h1>Blacksmith</h1>
 
-[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/lucasalvcoutinho.blacksmith?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=lucasalvcoutinho.blacksmith)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/lucasalvcoutinho.blacksmith)](https://marketplace.visualstudio.com/items?itemName=lucasalvcoutinho.blacksmith)
+  <p>Read Callgrind and Cachegrind profiles without leaving VS Code.</p>
 
-A VS Code extension for visualizing callgrind/cachegrind profiles with Flat Profile, Call Graph, Caller Map, and Flame Graph views. Inspired by [KCachegrind](https://github.com/KDE/kcachegrind).
+<a href="https://marketplace.visualstudio.com/items?itemName=lucasalvcoutinho.blacksmith"><img alt="VS Code Marketplace version" src="https://img.shields.io/visual-studio-marketplace/v/lucasalvcoutinho.blacksmith.svg?style=for-the-badge&labelColor=000000"></a>
+<a href="https://marketplace.visualstudio.com/items?itemName=lucasalvcoutinho.blacksmith"><img alt="VS Code Marketplace installs" src="https://img.shields.io/visual-studio-marketplace/i/lucasalvcoutinho.blacksmith.svg?style=for-the-badge&labelColor=000000"></a>
+<a href="https://open-vsx.org/extension/lucasalvcoutinho/blacksmith"><img alt="Open VSX version" src="https://img.shields.io/open-vsx/v/lucasalvcoutinho/blacksmith?style=for-the-badge&labelColor=000000"></a>
+<a href="./LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/lucasacoutinho/blacksmith.svg?style=for-the-badge&labelColor=000000"></a>
+</div>
 
-## Installation
+## Getting started
 
-Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=lucasalvcoutinho.blacksmith) or search for "Blacksmith" in the Extensions view (`Ctrl+Shift+X`).
+Install Blacksmith from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=lucasalvcoutinho.blacksmith), from [Open VSX](https://open-vsx.org/extension/lucasalvcoutinho/blacksmith), or from the command line:
 
-## Supported Profilers
+```bash
+code --install-extension lucasalvcoutinho.blacksmith
+```
 
-- **Valgrind** (C/C++) - callgrind output with instruction counts
-- **Xdebug** (PHP) - cachegrind output with time metrics
-- **pyprof2calltree** (Python) - cProfile output converted to callgrind
-- Any profiler using the callgrind format
+Open the Command Palette and run `Blacksmith: Open Profiling File`. Blacksmith also opens files matching these names as a custom editor:
 
-## Features
+- `*.callgrind`
+- `*.cachegrind`
+- `callgrind.out*`
+- `cachegrind.out*`
 
-- **Flat Profile**: Sortable table showing all functions with self cost, total cost, call count, and percentage
-- **Call Graph**: Interactive SVG graph with pan/zoom, click to focus on function subtrees
-- **Caller Map**: Treemap visualization showing cost distribution across functions
-- **Flame Graph**: Canvas visualization with zoom, hover tooltips, and heat-map coloring
-- **Line View**: Inline annotations in the editor showing function costs directly on source code with heat-map backgrounds
-- **Hot Path Overlay**: Highlights the hottest call chain from the most expensive function
-- **Multi-metric support**: Switch between different cost metrics (Time, Memory, Instructions, etc.)
-- **Profile caching**: Parsed profiles are cached for fast reopening
+Blacksmith requires VS Code 1.85 or newer.
 
-## Usage
+## What it shows
 
-1. Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
-2. Run **Blacksmith: Open Profiling File**
-3. Select a callgrind/cachegrind file
+- **Flat profile.** Sort and search functions by self cost, total cost, call count, or percentage.
+- **Call graph.** Follow callers and callees, focus a subtree, and jump to the corresponding source.
+- **Caller map.** Scan cost distribution as a treemap.
+- **Flame graph.** Zoom through the active call tree on a canvas view.
+- **Line view.** Add inline costs, heat backgrounds, overview-ruler marks, and the hottest call chain to source files.
+- **Profile comparison.** Compare two runs, inspect regressions and improvements, then export data as CSV or JSON.
+- **Multiple metrics.** Switch between Time, Memory, Instructions, and any other events present in the profile.
+- **Profile cache.** Reopen unchanged profiles without parsing them again.
 
-The extension automatically opens files matching `*.callgrind`, `*.cachegrind`, `callgrind.out*`, or `cachegrind.out*`.
+The parser accepts Callgrind output from Valgrind, Cachegrind output from Xdebug, `pyprof2calltree`, and other tools that write the same format. Blacksmith takes its visual cues from [KCachegrind](https://github.com/KDE/kcachegrind).
 
-### Commands
+## Commands
 
-| Command | Description |
-|---------|-------------|
-| `Blacksmith: Open Profiling File` | Open a file picker to select a profile |
-| `Blacksmith: Toggle Line View` | Show/hide inline cost annotations in the editor |
-| `Blacksmith: Toggle Hot Path Overlay` | Show/hide hot path highlighting |
-| `Blacksmith: Clear Profile Cache` | Clear all cached parsed profiles |
+| Command                               | What it does                                | Default key      |
+| ------------------------------------- | ------------------------------------------- | ---------------- |
+| `Blacksmith: Open Profiling File`     | Select and open a profile                   |                  |
+| `Blacksmith: Compare with Profile...` | Compare the active profile with another run |                  |
+| `Blacksmith: Toggle Line View`        | Show or hide source annotations             |                  |
+| `Blacksmith: Toggle Hot Path Overlay` | Show or hide the hottest call chain         |                  |
+| `Blacksmith: Next Hotspot`            | Open the next expensive function            | `Alt+Shift+Down` |
+| `Blacksmith: Previous Hotspot`        | Open the previous expensive function        | `Alt+Shift+Up`   |
+| `Blacksmith: List Hotspots`           | Pick from the most expensive functions      |                  |
+| `Blacksmith: Clear Profile Cache`     | Remove cached profiles                      |                  |
 
-### Line View
+## Creating a profile
 
-When a profile is loaded, the Line View feature displays performance annotations directly in your source code:
-
-- **Inline Labels**: Shows `selfCost/totalCost (percentage%) | calls` at function definitions
-- **Heat-map Background**: Lines are tinted based on relative cost (darker = more expensive)
-- **Overview Ruler**: Quick visual scan via the right-side minimap
-- **Hot Path**: Optional overlay highlighting the most expensive call chain
-
-To use Line View:
-1. Load a profile file
-2. Open any source file referenced in the profile
-3. Use `Blacksmith: Toggle Line View` to enable/disable annotations
-4. Use `Blacksmith: Toggle Hot Path Overlay` to see the hottest execution path
-
-## Generating Profile Data
-
-### PHP (Xdebug)
+### PHP with Xdebug
 
 ```ini
 xdebug.mode = profile
@@ -69,10 +65,10 @@ xdebug.output_dir = /tmp
 xdebug.profiler_output_name = cachegrind.out.%p
 ```
 
-### C/C++ (Valgrind)
+### C and C++ with Valgrind
 
 ```bash
-valgrind --tool=callgrind ./myprogram
+valgrind --tool=callgrind ./my-program
 ```
 
 ### Python
@@ -84,48 +80,26 @@ pyprof2calltree -i profile.out -o profile.callgrind
 
 ## Development
 
+Blacksmith uses TypeScript for the extension host, React for the webview, and an OCaml parser compiled to JavaScript by Melange.
+
+You need Node.js 22 or newer, npm, and opam. The repository and CI use OCaml 5.2.
+
 ```bash
-# Install dependencies
-npm install
+opam switch create . 5.2.1
+opam install dune.3.21.0 melange.6.0.1-52
 
-# Watch mode (extension + webview)
-npm run watch
-
-# Run tests
-npm test
-
-# Production build
-npm run build:prod
-
-# Package extension
-npm run package
+npm ci
+npm run build
+npm run check
+npm run test:integration
 ```
 
-Press `F5` in VS Code to launch the extension in development mode.
+`npm run check` enforces source policy, runs Oxfmt and Oxlint, checks TypeScript, and executes the test suite. TypeScript modules use kebab-case filenames. React components use PascalCase `.tsx` filenames. React effect hooks are prohibited. Run `npm run fmt` to format the repository, `npm run watch` while developing, and `npm run package` to create a VSIX. Press `F5` in VS Code to open an Extension Development Host.
 
-### Project Structure
+## Contributing
 
-```
-src/
-  extension.ts           # VS Code extension entry point
-  types.ts               # Shared TypeScript types with Effect Brand
-  cache.ts               # Profile caching with Effect patterns
-  parser/
-    index.ts             # TypeScript interface to Melange parser
-    callgrind.ml         # OCaml/Melange callgrind format parser
-    parser.ml            # Main parser logic
-    lexer.ml             # Tokenizer
-    types.ml             # Parser type definitions
-  views/
-    ProfileEditorProvider.ts  # Custom editor provider
-  webview/
-    index.tsx            # React entry point
-    store.ts             # Zustand store with Effect Match
-    components/          # React components (FlatProfile, CallGraph, CallerMap, FlameGraph)
-    hooks/               # Custom React hooks
-    utils/               # Formatting and color utilities
-```
+Bug reports and focused pull requests are welcome. Run `npm run build` and `npm run check` before opening a pull request.
 
 ## License
 
-MIT
+[MIT](./LICENSE)

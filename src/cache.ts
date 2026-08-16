@@ -36,8 +36,7 @@ interface FileStat {
 const hashPath = (path: FilePath): string =>
   crypto.createHash('md5').update(path).digest('hex').slice(0, 16);
 
-const toCacheKey = (path: FilePath): CacheKey =>
-  CacheKey(CACHE_PREFIX + hashPath(path));
+const toCacheKey = (path: FilePath): CacheKey => CacheKey(CACHE_PREFIX + hashPath(path));
 
 const isValidEntry = (entry: CacheEntry, stat: FileStat): boolean =>
   entry.mtime === stat.mtimeMs && entry.size === stat.size;
@@ -51,7 +50,7 @@ const statFile = (path: FilePath): Effect.Effect<FileStat, FileStatError> =>
 const validateEntry = (
   path: FilePath,
   entry: CacheEntry,
-  stat: FileStat
+  stat: FileStat,
 ): Effect.Effect<SerializedProfileData, CacheStaleError> =>
   isValidEntry(entry, stat)
     ? Effect.succeed(entry.data)
@@ -71,8 +70,8 @@ export class ProfileCache {
       pipe(
         statFile(path),
         Effect.flatMap((stat) => validateEntry(path, entry, stat)),
-        Effect.catchAll(() => Effect.succeed(null as SerializedProfileData | null))
-      )
+        Effect.catchAll(() => Effect.succeed(null as SerializedProfileData | null)),
+      ),
     );
   }
 
@@ -90,11 +89,9 @@ export class ProfileCache {
       pipe(
         statFile(path),
         Effect.map(createEntry),
-        Effect.flatMap((entry) =>
-          Effect.promise(() => this.storage.update(key, entry))
-        ),
-        Effect.catchAll(() => Effect.void)
-      )
+        Effect.flatMap((entry) => Effect.promise(() => this.storage.update(key, entry))),
+        Effect.catchAll(() => Effect.void),
+      ),
     );
   }
 
