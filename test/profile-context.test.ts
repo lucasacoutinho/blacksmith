@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { findHotPathIds } from '../src/hot-path';
 import { ProfileContext } from '../src/profile-context';
-import { FunctionId, type CallEdge, type FunctionStats, type ProfileData } from '../src/types';
+import {
+  Cost,
+  FunctionId,
+  type CallEdge,
+  type FunctionStats,
+  type ProfileData,
+} from '../src/types';
+import { ZERO_COST, addCosts } from '../src/cost';
 
 const makeStats = (
   id: number,
@@ -13,12 +20,12 @@ const makeStats = (
   name,
   file: `${name}.ts`,
   line: id + 1,
-  selfCost: selfCosts[0] ?? 0,
-  totalCost: totalCosts[0] ?? 0,
-  selfCosts,
-  totalCosts,
+  selfCost: Cost(selfCosts[0] ?? 0),
+  totalCost: Cost(totalCosts[0] ?? 0),
+  selfCosts: selfCosts.map(Cost),
+  totalCosts: totalCosts.map(Cost),
   lineCosts: [],
-  calls: 1,
+  calls: Cost(1),
   callers: [],
   callees: [],
 });
@@ -26,11 +33,11 @@ const makeStats = (
 const makeEdge = (callerId: number, calleeId: number, costs: readonly number[]): CallEdge => ({
   callerId: FunctionId(callerId),
   calleeId: FunctionId(calleeId),
-  calls: 1,
+  calls: Cost(1),
   callsiteLine: 1,
-  inclusive: costs[0] ?? 0,
-  exclusive: 0,
-  inclusiveCosts: costs,
+  inclusive: Cost(costs[0] ?? 0),
+  exclusive: ZERO_COST,
+  inclusiveCosts: costs.map(Cost),
 });
 
 const makeProfile = (
@@ -45,10 +52,10 @@ const makeProfile = (
   ),
   stats: new Map(stats.map((entry) => [entry.id, entry])),
   edges,
-  totalCost: stats.reduce((total, entry) => total + entry.totalCost, 0),
+  totalCost: stats.reduce((total, entry) => addCosts(total, entry.totalCost), ZERO_COST),
   totalCosts: [
-    stats.reduce((total, entry) => total + (entry.totalCosts[0] ?? 0), 0),
-    stats.reduce((total, entry) => total + (entry.totalCosts[1] ?? 0), 0),
+    stats.reduce((total, entry) => addCosts(total, entry.totalCosts[0] ?? ZERO_COST), ZERO_COST),
+    stats.reduce((total, entry) => addCosts(total, entry.totalCosts[1] ?? ZERO_COST), ZERO_COST),
   ],
   eventType: 'Time',
   eventTypes: ['Time', 'Memory'],

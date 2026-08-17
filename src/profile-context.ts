@@ -1,5 +1,6 @@
 import { MetricIndex } from './types';
 import type { FunctionId, FunctionNode, FunctionStats, ProfileData } from './types';
+import { compareCosts } from './cost';
 
 export interface ProfileIndices {
   readonly functionsByFile: ReadonlyMap<string, readonly FunctionNode[]>;
@@ -76,7 +77,7 @@ export class ProfileContext {
           sortBy === 'selfCost'
             ? (s.selfCosts?.[metricIndex] ?? s.selfCost)
             : (s.totalCosts?.[metricIndex] ?? s.totalCost);
-        return getCost(b) - getCost(a);
+        return compareCosts(getCost(b), getCost(a));
       })
       .slice(0, count);
   }

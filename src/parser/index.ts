@@ -1,17 +1,17 @@
 import * as fs from 'fs';
-import * as nodePath from 'path';
+import { join } from 'path';
 import { pipe, Effect, Data } from 'effect';
 import type { ProfileData, ParseProgress, SerializedProfileData } from '../types';
-import { FunctionId } from '../types';
+import { Cost, FunctionId } from '../types';
 
-interface OcamlParser {
-  readonly parseCallgrindContent: (
+interface Parser {
+  readonly parse: (
     content: string,
     onProgress: (percent: number, fnCount: number, currentFn: string) => void,
   ) => SerializedProfileData;
 }
 
-class OcamlParserNotAvailable extends Data.TaggedError('OcamlParserNotAvailable')<{
+class ParserNotAvailable extends Data.TaggedError('ParserNotAvailable')<{
   readonly message: string;
 }> {}
 
@@ -20,44 +20,44 @@ class FileReadError extends Data.TaggedError('FileReadError')<{
   readonly cause: unknown;
 }> {}
 
-const getOcamlParserPath = (): string => {
+const path = (): string => {
   // In production (bundled), __dirname is dist/, parser is at dist/parser/
   // In development/tests, __dirname is src/parser/, parser is in _build/
-  const prodPath = nodePath.join(__dirname, 'parser', 'callgrind.js');
-  const devPath = nodePath.join(__dirname, '_build', 'default', 'dist', 'callgrind.js');
+  const prod = join(__dirname, 'parser', 'callgrind.js');
+  const devl = join(__dirname, '_build', 'default', 'dist', 'callgrind.js');
 
   try {
-    require.resolve(devPath);
-    return devPath;
+    require.resolve(devl);
+    return devl;
   } catch {
-    return prodPath;
+    return prod;
   }
 };
 
-const loadOcamlParser = (): Effect.Effect<OcamlParser, OcamlParserNotAvailable> =>
+const load = (): Effect.Effect<Parser, ParserNotAvailable> =>
   Effect.try({
     try: () => {
-      const parserPath = getOcamlParserPath();
-      const parser = require(parserPath) as OcamlParser;
-      if (typeof parser.parseCallgrindContent !== 'function') {
-        throw new Error('parseCallgrindContent is not a function');
+      const parsep = path();
+      const parser = require(parsep) as Parser;
+      if (typeof parser.parse !== 'function') {
+        throw new Error('parse is not a function');
       }
       return parser;
     },
     catch: () =>
-      new OcamlParserNotAvailable({
-        message: `OCaml parser not available at ${getOcamlParserPath()}. Run 'npm run build:parser' first.`,
+      new ParserNotAvailable({
+        message: `Parser not available at ${path()}. Run 'npm run build:parser' first.`,
       }),
   });
 
-const readFileContent = (filePath: string): Effect.Effect<string, FileReadError> =>
+const read = (file: string): Effect.Effect<string, FileReadError> =>
   Effect.tryPromise({
-    try: () => fs.promises.readFile(filePath, 'utf8'),
-    catch: (cause) => new FileReadError({ path: filePath, cause }),
+    try: () => fs.promises.readFile(file, 'utf8'),
+    catch: (cause) => new FileReadError({ path: file, cause }),
   });
 
-const transformOcamlOutput = (raw: SerializedProfileData): ProfileData => {
-  // The OCaml parser outputs FunctionId as plain numbers, need to brand them
+const transform = (raw: SerializedProfileData): ProfileData => {
+  // Serialized FunctionIds are plain numbers and need their TypeScript brand restored.
   const functions = new Map(
     raw.functions.map(([id, fn]) => [FunctionId(id), { ...fn, id: FunctionId(id) }]),
   );
@@ -68,6 +68,15 @@ const transformOcamlOutput = (raw: SerializedProfileData): ProfileData => {
       {
         ...s,
         id: FunctionId(id),
+        selfCost: Cost(s.selfCost),
+        totalCost: Cost(s.totalCost),
+        selfCosts: s.selfCosts.map(Cost),
+        totalCosts: s.totalCosts.map(Cost),
+        lineCosts: s.lineCosts.map((entry) => ({
+          ...entry,
+          costs: entry.costs.map(Cost),
+        })),
+        calls: Cost(s.calls),
         callers: s.callers.map(FunctionId),
         callees: s.callees.map(FunctionId),
       },
@@ -78,34 +87,38 @@ const transformOcamlOutput = (raw: SerializedProfileData): ProfileData => {
     ...e,
     callerId: FunctionId(e.callerId),
     calleeId: FunctionId(e.calleeId),
+    calls: Cost(e.calls),
+    inclusive: Cost(e.inclusive),
+    exclusive: Cost(e.exclusive),
+    inclusiveCosts: e.inclusiveCosts.map(Cost),
   }));
 
   return {
     functions,
     edges,
     stats,
-    totalCost: raw.totalCost,
+    totalCost: Cost(raw.totalCost),
     eventType: raw.eventType,
     eventTypes: raw.eventTypes,
-    totalCosts: raw.totalCosts,
+    totalCosts: raw.totalCosts.map(Cost),
   };
 };
 
 const parseEffect = (
   filePath: string,
   onProgress?: (progress: ParseProgress) => void,
-): Effect.Effect<ProfileData, OcamlParserNotAvailable | FileReadError> =>
+): Effect.Effect<ProfileData, ParserNotAvailable | FileReadError> =>
   pipe(
-    Effect.all([loadOcamlParser(), readFileContent(filePath)]),
+    Effect.all([load(), read(filePath)]),
     Effect.map(([parser, content]) => {
-      const raw = parser.parseCallgrindContent(content, (percent, fnCount, currentFn) =>
+      const raw = parser.parse(content, (percent, fnCount, currentFn) =>
         onProgress?.({ percent, functionCount: fnCount, currentFunction: currentFn }),
       );
-      return transformOcamlOutput(raw);
+      return transform(raw);
     }),
   );
 
-export const parseCallgrindFile = async (
+export const parse = async (
   filePath: string,
   onProgress?: (progress: ParseProgress) => void,
 ): Promise<ProfileData> =>

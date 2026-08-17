@@ -4,8 +4,9 @@ import { useProfileStore, useFunctionCost, type SortKey } from '../store';
 import { useResizeObserver, useFilteredStats, useTotalCost } from '../hooks';
 import { formatCost, shortenPath, calculatePercent } from '../utils';
 import { LAYOUT } from '../constants';
-import type { FunctionStats } from '../../types';
+import type { Cost, FunctionStats } from '../../types';
 import { postWebviewMessage } from '../vscode-bridge';
+import { formatExactCost } from '../../cost';
 
 const copyToClipboard = (text: string, e: MouseEvent) => {
   e.stopPropagation();
@@ -14,7 +15,7 @@ const copyToClipboard = (text: string, e: MouseEvent) => {
 
 interface FlatRowData {
   readonly stats: readonly FunctionStats[];
-  readonly totalCost: number;
+  readonly totalCost: Cost;
   readonly focusedIndex: number;
   readonly onOpenFile: (path: string, line: number) => void;
   readonly onSelectFunction: (id: number) => void;
@@ -85,7 +86,7 @@ const Row = function Row({
         {formatCost(fnTotalCost)}
       </div>
       <div role="gridcell" className="virtual-cell number">
-        {fn.calls.toLocaleString()}
+        {formatExactCost(fn.calls)}
       </div>
       <div role="gridcell" className="virtual-cell percent">
         {percent.toFixed(1)}%

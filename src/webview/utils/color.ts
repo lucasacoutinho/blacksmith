@@ -1,5 +1,7 @@
 import { pipe, Match } from 'effect';
 import { COST_THRESHOLDS, COST_COLORS, type CostLevel } from '../constants';
+import type { Cost } from '../../cost';
+import { costRatio } from '../../cost';
 
 const getRatioLevel = (ratio: number): CostLevel =>
   pipe(
@@ -23,5 +25,5 @@ const getRatioLevel = (ratio: number): CostLevel =>
     Match.orElse(() => 'COLD' as const),
   );
 
-export const getCostColor = (cost: number, totalCost: number): string =>
-  COST_COLORS[getRatioLevel(totalCost > 0 ? cost / totalCost : 0)];
+export const getCostColor = (cost: Cost, totalCost: Cost): string =>
+  COST_COLORS[getRatioLevel(costRatio(cost, totalCost))];

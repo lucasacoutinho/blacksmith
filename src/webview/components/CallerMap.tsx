@@ -5,11 +5,13 @@ import { useResizeObserver, useStats, useTotalCost } from '../hooks';
 import { getCostColor, calculatePercent } from '../utils';
 import { LIMITS } from '../constants';
 import { Tooltip } from './Tooltip';
+import type { Cost } from '../../types';
+import { ZERO_COST, addCosts, compareCosts, costRatio, isZeroCost } from '../../cost';
 
 interface TreemapRect {
   readonly id: number;
   readonly name: string;
-  readonly cost: number;
+  readonly cost: Cost;
   readonly x: number;
   readonly y: number;
   readonly width: number;
@@ -19,7 +21,7 @@ interface TreemapRect {
 interface TreemapItem {
   readonly id: number;
   readonly name: string;
-  readonly cost: number;
+  readonly cost: Cost;
 }
 
 const aspectRatio = (size1: number, size2: number): number =>
@@ -32,16 +34,14 @@ const truncateName = (name: string, width: number): string =>
 
 const worstAspect = (
   items: readonly TreemapItem[],
-  totalCost: number,
-  rowCost: number,
+  rowCost: Cost,
   rowSize: number,
-  isHorizontal: boolean,
   containerSize: number,
 ): number =>
   Math.max(
     ...items.map((item) => {
-      const itemFraction = item.cost / rowCost;
-      const itemSize = isHorizontal ? containerSize * itemFraction : containerSize * itemFraction;
+      const itemFraction = costRatio(item.cost, rowCost);
+      const itemSize = containerSize * itemFraction;
       return aspectRatio(rowSize, itemSize);
     }),
   );
@@ -59,21 +59,21 @@ const squarifyLayout = (
     return [{ ...items[0], x, y, width: Math.max(0, width), height: Math.max(0, height) }];
   }
 
-  const itemsCost = items.reduce((sum, f) => sum + f.cost, 0);
+  const itemsCost = items.reduce((sum, item) => addCosts(sum, item.cost), ZERO_COST);
   const isHorizontal = width >= height;
 
   let row: TreemapItem[] = [];
-  let rowCost = 0;
+  let rowCost = ZERO_COST;
   let splitIndex = items.length;
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     const testRow = [...row, item];
-    const testCost = rowCost + item.cost;
-    const rowFraction = testCost / itemsCost;
+    const testCost = addCosts(rowCost, item.cost);
+    const rowFraction = costRatio(testCost, itemsCost);
     const rowSize = isHorizontal ? width * rowFraction : height * rowFraction;
     const containerSize = isHorizontal ? height : width;
-    const worst = worstAspect(testRow, itemsCost, testCost, rowSize, isHorizontal, containerSize);
+    const worst = worstAspect(testRow, testCost, rowSize, containerSize);
 
     if (row.length > 0 && worst > 4) {
       splitIndex = i;
@@ -84,12 +84,12 @@ const squarifyLayout = (
     rowCost = testCost;
   }
 
-  const rowFraction = rowCost / itemsCost;
+  const rowFraction = costRatio(rowCost, itemsCost);
   let currentPos = 0;
   const result: TreemapRect[] = [];
 
   for (const item of row) {
-    const itemFraction = item.cost / rowCost;
+    const itemFraction = costRatio(item.cost, rowCost);
     if (isHorizontal) {
       const itemHeight = height * itemFraction;
       const rowWidth = width * rowFraction;
@@ -131,8 +131,8 @@ export const CallerMap = memo(function CallerMap() {
     return pipe(
       stats,
       A.map((fn) => ({ id: fn.id, name: fn.name, cost: getTotalCost(fn) })),
-      A.filter((f) => f.cost > 0),
-      (arr) => [...arr].sort((a, b) => b.cost - a.cost),
+      A.filter((item) => !isZeroCost(item.cost)),
+      (arr) => [...arr].sort((a, b) => compareCosts(b.cost, a.cost)),
       A.take(LIMITS.MAX_TREEMAP_ITEMS),
       (items) => squarifyLayout(items, 0, 0, dimensions.width, dimensions.height),
     );

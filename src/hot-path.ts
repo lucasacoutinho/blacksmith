@@ -1,11 +1,13 @@
 import type { FunctionId, ProfileData } from './types';
+import type { Cost } from './cost';
+import { compareCosts } from './cost';
 
 export const findHotPathIds = (
   data: ProfileData,
   metricIndex: number,
   requestedStartId: FunctionId | null,
 ): ReadonlySet<FunctionId> => {
-  const edgesByCaller = new Map<FunctionId, { calleeId: FunctionId; cost: number }[]>();
+  const edgesByCaller = new Map<FunctionId, { calleeId: FunctionId; cost: Cost }[]>();
   for (const edge of data.edges) {
     const cost = edge.inclusiveCosts[metricIndex] ?? edge.inclusive;
     const outgoing = edgesByCaller.get(edge.callerId) ?? [];
@@ -17,14 +19,14 @@ export const findHotPathIds = (
   if (startId !== null && !data.stats.has(startId)) startId = null;
 
   if (startId === null) {
-    let maxCost = -1;
+    let mostExpensive: { id: FunctionId; cost: Cost } | null = null;
     for (const stats of data.stats.values()) {
       const cost = stats.totalCosts[metricIndex] ?? stats.totalCost;
-      if (cost > maxCost) {
-        maxCost = cost;
-        startId = stats.id;
+      if (mostExpensive === null || compareCosts(cost, mostExpensive.cost) > 0) {
+        mostExpensive = { id: stats.id, cost };
       }
     }
+    startId = mostExpensive?.id ?? null;
   }
 
   const ids = new Set<FunctionId>();
@@ -36,7 +38,7 @@ export const findHotPathIds = (
 
     let hottestEdge = outgoing[0];
     for (const edge of outgoing) {
-      if (edge.cost > hottestEdge.cost) hottestEdge = edge;
+      if (compareCosts(edge.cost, hottestEdge.cost) > 0) hottestEdge = edge;
     }
     current = hottestEdge.calleeId;
   }

@@ -5,8 +5,9 @@ import { useResizeObserver, useStatsData, useEdges, useEdgeIndex, useTotalCost }
 import { getCostColor } from '../utils';
 import { LAYOUT, LIMITS } from '../constants';
 import { Tooltip } from './Tooltip';
-import type { FunctionStats, CallEdge } from '../../types';
+import type { Cost, FunctionStats, CallEdge } from '../../types';
 import type { EdgeIndex } from '../utils/edge-index';
+import { ZERO_COST, addCosts, compareCosts, costRatio, isZeroCost } from '../../cost';
 
 interface FlameFrame {
   readonly id: number;
@@ -14,7 +15,7 @@ interface FlameFrame {
   readonly x: number;
   readonly width: number;
   readonly depth: number;
-  readonly cost: number;
+  readonly cost: Cost;
 }
 
 interface ZoomState {
@@ -25,17 +26,17 @@ interface ZoomState {
 const findRoots = (
   stats: readonly FunctionStats[],
   edges: readonly CallEdge[],
-  getTotalCost: (fn: FunctionStats) => number,
+  getTotalCost: (fn: FunctionStats) => Cost,
 ): readonly FunctionStats[] => {
   const hasCallers = new Set(edges.map((e) => e.calleeId));
   const roots = pipe(
     stats,
     A.filter((s) => !hasCallers.has(s.id)),
-    (arr) => [...arr].sort((a, b) => getTotalCost(b) - getTotalCost(a)),
+    (arr) => [...arr].sort((a, b) => compareCosts(getTotalCost(b), getTotalCost(a))),
   );
   return roots.length > 0
     ? roots
-    : [...stats].sort((a, b) => getTotalCost(b) - getTotalCost(a)).slice(0, 5);
+    : [...stats].sort((a, b) => compareCosts(getTotalCost(b), getTotalCost(a))).slice(0, 5);
 };
 
 const buildFrames = (
@@ -43,11 +44,11 @@ const buildFrames = (
   edges: readonly CallEdge[],
   edgeIndex: EdgeIndex,
   statsMap: ReadonlyMap<number, FunctionStats>,
-  getTotalCost: (fn: FunctionStats) => number,
-  getEdgeCost: (edge: CallEdge) => number,
+  getTotalCost: (fn: FunctionStats) => Cost,
+  getEdgeCost: (edge: CallEdge) => Cost,
 ): readonly FlameFrame[] => {
   const roots = findRoots(stats, edges, getTotalCost);
-  const rootTotalCost = roots.reduce((sum, r) => sum + getTotalCost(r), 0);
+  const rootTotalCost = roots.reduce((sum, root) => addCosts(sum, getTotalCost(root)), ZERO_COST);
 
   const result: FlameFrame[] = [];
   const visited = new Set<number>();
@@ -55,7 +56,9 @@ const buildFrames = (
 
   let x = 0;
   for (const root of roots) {
-    const width = rootTotalCost > 0 ? getTotalCost(root) / rootTotalCost : 1 / roots.length;
+    const width = isZeroCost(rootTotalCost)
+      ? 1 / roots.length
+      : costRatio(getTotalCost(root), rootTotalCost);
     stack.push({ fnId: root.id, x, width, depth: 0 });
     x += width;
   }
@@ -73,14 +76,18 @@ const buildFrames = (
     const calleeEdges = edgeIndex.get(fnId);
     if (!calleeEdges || calleeEdges.length === 0) continue;
 
-    const sorted = [...calleeEdges].sort((a, b) => getEdgeCost(a) - getEdgeCost(b));
-    const totalCalleeCost = sorted.reduce((sum, e) => sum + getEdgeCost(e), 0);
+    const sorted = [...calleeEdges].sort((a, b) => compareCosts(getEdgeCost(a), getEdgeCost(b)));
+    const totalCalleeCost = sorted.reduce(
+      (sum, edge) => addCosts(sum, getEdgeCost(edge)),
+      ZERO_COST,
+    );
     let currentX = frameX;
 
     for (const edge of sorted) {
       const edgeCost = getEdgeCost(edge);
-      const calleeWidth =
-        totalCalleeCost > 0 ? (edgeCost / totalCalleeCost) * width : width / sorted.length;
+      const calleeWidth = isZeroCost(totalCalleeCost)
+        ? width / sorted.length
+        : costRatio(edgeCost, totalCalleeCost) * width;
 
       if (calleeWidth > LIMITS.MIN_FRAME_WIDTH) {
         stack.push({ fnId: edge.calleeId, x: currentX, width: calleeWidth, depth: depth + 1 });
@@ -117,7 +124,7 @@ const drawFlameGraph = (
   ctx: CanvasRenderingContext2D,
   frames: readonly FlameFrame[],
   zoom: ZoomState,
-  totalCost: number,
+  totalCost: Cost,
   width: number,
   height: number,
 ): void => {

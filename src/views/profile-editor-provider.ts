@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { getProfileWebviewHtml } from './profile-webview';
 import { pipe, Match } from 'effect';
-import { parseCallgrindFile } from '../parser';
+import { parse } from '../parser';
 import type { ExtensionMessage, WebviewMessage, ParseProgress, DiffResult } from '../types';
 import { deserializeProfileData, serializeProfileData, FunctionId } from '../types';
 import { computeDiff, resolveComparisonMetric } from '../diff';
@@ -146,7 +146,7 @@ export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvide
     const filenameB = filePathB.split('/').pop() || filePathB;
 
     try {
-      const dataB = await parseCallgrindFile(filePathB);
+      const dataB = await parse(filePathB);
 
       const metric = resolveComparisonMetric(
         profileData.eventTypes,
@@ -202,7 +202,7 @@ export class ProfileEditorProvider implements vscode.CustomReadonlyEditorProvide
         return;
       }
 
-      const data = await parseCallgrindFile(filePath, (progress: ParseProgress) => {
+      const data = await parse(filePath, (progress: ParseProgress) => {
         this._postMessage(webview, { type: 'progress', progress });
       });
 

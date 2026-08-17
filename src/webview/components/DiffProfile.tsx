@@ -4,8 +4,14 @@ import { useProfileStore, type SortKey } from '../store';
 import { useResizeObserver } from '../hooks';
 import { formatCost, shortenPath } from '../utils';
 import { LAYOUT } from '../constants';
-import type { DiffEntry, DiffResult } from '../../types';
+import type { CostDelta, DiffEntry, DiffResult } from '../../types';
 import { postWebviewMessage } from '../vscode-bridge';
+import {
+  compareCostDeltas,
+  isNegativeCostDelta,
+  isPositiveCostDelta,
+  subtractCosts,
+} from '../../cost';
 
 const statusColor = (status: DiffEntry['status']): string => {
   switch (status) {
@@ -22,8 +28,8 @@ const statusColor = (status: DiffEntry['status']): string => {
   }
 };
 
-const formatDelta = (delta: number): string => {
-  const prefix = delta > 0 ? '+' : '';
+const formatDelta = (delta: CostDelta): string => {
+  const prefix = isPositiveCostDelta(delta) ? '+' : '';
   return `${prefix}${formatCost(delta)}`;
 };
 
@@ -75,12 +81,11 @@ const DiffRow = function DiffRow({ index, style, entries, onOpenFile }: DiffRowP
 
 const DiffSummary = memo(function DiffSummary({ diff }: { diff: DiffResult }) {
   const clearDiff = useProfileStore((s) => s.clearDiff);
-  const deltaColor =
-    diff.totalDelta > 0
-      ? 'var(--vscode-charts-red, #f44747)'
-      : diff.totalDelta < 0
-        ? 'var(--vscode-charts-green, #4ec9b0)'
-        : 'var(--vscode-foreground)';
+  const deltaColor = isPositiveCostDelta(diff.totalDelta)
+    ? 'var(--vscode-charts-red, #f44747)'
+    : isNegativeCostDelta(diff.totalDelta)
+      ? 'var(--vscode-charts-green, #4ec9b0)'
+      : 'var(--vscode-foreground)';
 
   return (
     <div className="diff-summary">
@@ -131,16 +136,19 @@ export const DiffProfile = memo(function DiffProfile() {
         cmp = a.file.localeCompare(b.file);
         break;
       case 'selfCost':
-        cmp = a.selfDelta - b.selfDelta;
+        cmp = compareCostDeltas(a.selfDelta, b.selfDelta);
         break;
       case 'totalCost':
-        cmp = a.totalDelta - b.totalDelta;
+        cmp = compareCostDeltas(a.totalDelta, b.totalDelta);
         break;
       case 'calls':
-        cmp = a.callsB - a.callsA - (b.callsB - b.callsA);
+        cmp = compareCostDeltas(
+          subtractCosts(a.callsB, a.callsA),
+          subtractCosts(b.callsB, b.callsA),
+        );
         break;
       default:
-        cmp = a.totalDelta - b.totalDelta;
+        cmp = compareCostDeltas(a.totalDelta, b.totalDelta);
         break;
     }
     return sortDir === 'desc' ? -cmp : cmp;

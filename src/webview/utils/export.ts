@@ -1,8 +1,8 @@
-import type { FunctionStats } from '../../types';
+import type { Cost, FunctionStats } from '../../types';
 
 export const exportCSV = (
   stats: readonly FunctionStats[],
-  getCosts: (fn: FunctionStats) => { selfCost: number; totalCost: number },
+  getCosts: (fn: FunctionStats) => { selfCost: Cost; totalCost: Cost },
 ): string => {
   const header = 'Function,File,Line,Self Cost,Total Cost,Calls';
   const rows = stats.map((fn) => {
@@ -16,7 +16,7 @@ export const exportCSV = (
 
 export const exportJSON = (
   stats: readonly FunctionStats[],
-  getCosts: (fn: FunctionStats) => { selfCost: number; totalCost: number },
+  getCosts: (fn: FunctionStats) => { selfCost: Cost; totalCost: Cost },
 ): string => {
   const data = stats.map((fn) => {
     const { selfCost, totalCost } = getCosts(fn);

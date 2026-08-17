@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import * as fs from 'fs';
-import { FunctionId, type SerializedProfileData } from '../src/types';
+import { Cost, FunctionId, type SerializedProfileData } from '../src/types';
 
 class MockMemento {
   private data = new Map<string, unknown>();
@@ -41,21 +41,21 @@ describe('ProfileCache', () => {
           name: 'main',
           file: 'test.php',
           line: 1,
-          selfCost: 100,
-          totalCost: 100,
-          selfCosts: [100],
-          totalCosts: [100],
+          selfCost: Cost(100),
+          totalCost: Cost(100),
+          selfCosts: [Cost(100)],
+          totalCosts: [Cost(100)],
           lineCosts: [],
-          calls: 1,
+          calls: Cost(1),
           callers: [],
           callees: [],
         },
       ],
     ],
-    totalCost: 100,
+    totalCost: Cost(100),
     eventType: 'Time',
     eventTypes: ['Time'],
-    totalCosts: [100],
+    totalCosts: [Cost(100)],
   };
 
   it('returns null for uncached files', async () => {
@@ -113,12 +113,14 @@ describe('ProfileCache', () => {
     const { ProfileCache, mockStat } = await loadProfileCache();
     mockStat.mockResolvedValue({ mtimeMs: 1000, size: 500 } as fs.Stats);
 
-    const cache = new ProfileCache(new MockMemento() as never);
+    const storage = new MockMemento();
+    const cache = new ProfileCache(storage as never);
     await cache.set('/test/file1.callgrind', mockData);
     await cache.set('/test/file2.callgrind', mockData);
+    await storage.update('profile_cache_v1_legacy', { data: 'old numeric format' });
 
     const cleared = await cache.clear();
-    expect(cleared).toBe(2);
+    expect(cleared).toBe(3);
 
     expect(await cache.get('/test/file1.callgrind')).toBeNull();
     expect(await cache.get('/test/file2.callgrind')).toBeNull();

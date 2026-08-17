@@ -1,4 +1,12 @@
 import type { FunctionStats, DiffEntry, DiffResult } from './types';
+import type { Cost } from './cost';
+import {
+  ZERO_COST,
+  ZERO_COST_DELTA,
+  compareCostDeltas,
+  costDeltaPercent,
+  subtractCosts,
+} from './cost';
 
 export interface ComparisonMetric {
   readonly name: string;
@@ -22,11 +30,10 @@ export const resolveComparisonMetric = (
 
 const functionKey = (fn: FunctionStats): string => `${fn.name}\0${fn.file}`;
 
-const deltaPct = (a: number, b: number): number =>
-  a === 0 ? (b === 0 ? 0 : 100) : ((b - a) / a) * 100;
-
-const classifyStatus = (delta: number): DiffEntry['status'] =>
-  delta > 0 ? 'regressed' : delta < 0 ? 'improved' : 'unchanged';
+const classifyStatus = (delta: DiffEntry['totalDelta']): DiffEntry['status'] => {
+  const comparison = compareCostDeltas(delta, ZERO_COST_DELTA);
+  return comparison > 0 ? 'regressed' : comparison < 0 ? 'improved' : 'unchanged';
+};
 
 export const computeDiff = (
   statsA: readonly FunctionStats[],
@@ -34,8 +41,8 @@ export const computeDiff = (
   metric: ComparisonMetric,
   filenameA: string,
   filenameB: string,
-  totalCostA: number,
-  totalCostB: number,
+  totalCostA: Cost,
+  totalCostB: Cost,
 ): DiffResult => {
   const mapA = new Map<string, FunctionStats>();
   for (const fn of statsA) mapA.set(functionKey(fn), fn);
@@ -50,13 +57,13 @@ export const computeDiff = (
     const a = mapA.get(key);
     const b = mapB.get(key);
 
-    const selfA = a ? (a.selfCosts?.[metric.profileAIndex] ?? a.selfCost) : 0;
-    const selfB = b ? (b.selfCosts?.[metric.profileBIndex] ?? b.selfCost) : 0;
-    const totalA = a ? (a.totalCosts?.[metric.profileAIndex] ?? a.totalCost) : 0;
-    const totalB = b ? (b.totalCosts?.[metric.profileBIndex] ?? b.totalCost) : 0;
+    const selfA = a ? (a.selfCosts?.[metric.profileAIndex] ?? a.selfCost) : ZERO_COST;
+    const selfB = b ? (b.selfCosts?.[metric.profileBIndex] ?? b.selfCost) : ZERO_COST;
+    const totalA = a ? (a.totalCosts?.[metric.profileAIndex] ?? a.totalCost) : ZERO_COST;
+    const totalB = b ? (b.totalCosts?.[metric.profileBIndex] ?? b.totalCost) : ZERO_COST;
 
-    const selfDelta = selfB - selfA;
-    const totalDelta = totalB - totalA;
+    const selfDelta = subtractCosts(selfB, selfA);
+    const totalDelta = subtractCosts(totalB, totalA);
 
     const status: DiffEntry['status'] = !a ? 'added' : !b ? 'removed' : classifyStatus(totalDelta);
 
@@ -73,22 +80,22 @@ export const computeDiff = (
       totalCostB: totalB,
       selfDelta,
       totalDelta,
-      selfDeltaPct: deltaPct(selfA, selfB),
-      totalDeltaPct: deltaPct(totalA, totalB),
-      callsA: a?.calls ?? 0,
-      callsB: b?.calls ?? 0,
+      selfDeltaPct: costDeltaPercent(selfA, selfB),
+      totalDeltaPct: costDeltaPercent(totalA, totalB),
+      callsA: a?.calls ?? ZERO_COST,
+      callsB: b?.calls ?? ZERO_COST,
       status,
     });
   }
 
-  entries.sort((a, b) => b.totalDelta - a.totalDelta);
+  entries.sort((a, b) => compareCostDeltas(b.totalDelta, a.totalDelta));
 
   return {
     entries,
     totalCostA,
     totalCostB,
-    totalDelta: totalCostB - totalCostA,
-    totalDeltaPct: deltaPct(totalCostA, totalCostB),
+    totalDelta: subtractCosts(totalCostB, totalCostA),
+    totalDeltaPct: costDeltaPercent(totalCostA, totalCostB),
     metricName: metric.name,
     filenameA,
     filenameB,

@@ -2,16 +2,10 @@ import * as vscode from 'vscode';
 import path from 'path';
 import { ProfileContext } from './profile-context';
 import { findHotPathIds } from './hot-path';
-import type { FunctionId, FunctionStats, ProfileData } from './types';
-
-const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+import type { Cost, FunctionId, FunctionStats, ProfileData } from './types';
+import { ZERO_COST, compareCosts, costRatio, formatExactCost } from './cost';
 
 const normalizePath = (value: string): string => path.normalize(value).replace(/\\/g, '/');
-
-const formatCost = (value: number): string => {
-  if (!Number.isFinite(value)) return '0';
-  return formatter.format(Math.round(value));
-};
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
@@ -182,15 +176,15 @@ export class LineViewDecorations implements vscode.Disposable {
     const entries: Array<{
       lineIndex: number;
       stats: FunctionStats;
-      totalCost: number;
-      selfCost: number;
+      totalCost: Cost;
+      selfCost: Cost;
     }> = [];
 
     const hotPathIds = this.hotPathEnabled
       ? this.getHotPathIds(data, metricIndex, this.hotPathStartId)
       : new Set<FunctionId>();
 
-    let maxCost = 0;
+    let maxCost = ZERO_COST;
     for (const [line, fn] of lineMap.entries()) {
       const stats = indices.statsById.get(fn.id);
       if (!stats) continue;
@@ -200,7 +194,7 @@ export class LineViewDecorations implements vscode.Disposable {
 
       const totalCost = stats.totalCosts?.[metricIndex] ?? stats.totalCost;
       const selfCost = stats.selfCosts?.[metricIndex] ?? stats.selfCost;
-      maxCost = Math.max(maxCost, totalCost);
+      if (compareCosts(totalCost, maxCost) > 0) maxCost = totalCost;
 
       entries.push({ lineIndex, stats, totalCost, selfCost });
     }
@@ -218,10 +212,10 @@ export class LineViewDecorations implements vscode.Disposable {
 
     for (const entry of entries) {
       const line = editor.document.lineAt(entry.lineIndex);
-      const percent = totalCostAll > 0 ? (entry.totalCost / totalCostAll) * 100 : 0;
-      const label = `${formatCost(entry.selfCost)}/${formatCost(entry.totalCost)} (${percent.toFixed(1)}%) | ${entry.stats.calls} calls`;
+      const percent = costRatio(entry.totalCost, totalCostAll) * 100;
+      const label = `${formatExactCost(entry.selfCost)}/${formatExactCost(entry.totalCost)} (${percent.toFixed(1)}%) | ${formatExactCost(entry.stats.calls)} calls`;
 
-      const intensity = maxCost > 0 ? entry.totalCost / maxCost : 0;
+      const intensity = costRatio(entry.totalCost, maxCost);
       const bucket = clamp(Math.floor(intensity * HEAT_BUCKETS), 0, HEAT_BUCKETS - 1);
 
       inlineOptions.push({

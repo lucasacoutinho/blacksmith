@@ -2,13 +2,14 @@ import { useCallback, useState, memo } from 'react';
 import { pipe } from 'effect';
 import { LAYOUT } from '../constants';
 import { formatCost, formatPercent } from '../utils';
+import type { Cost } from '../../types';
 
 interface TooltipProps {
   readonly x: number;
   readonly y: number;
   readonly name: string;
-  readonly cost: number;
-  readonly totalCost: number;
+  readonly cost: Cost;
+  readonly totalCost: Cost;
 }
 
 const clamp =

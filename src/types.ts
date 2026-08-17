@@ -1,4 +1,8 @@
 import { Brand } from 'effect';
+import type { Cost, CostDelta } from './cost';
+
+export { Cost } from './cost';
+export type { CostDelta } from './cost';
 
 export type FunctionId = number & Brand.Brand<'FunctionId'>;
 export const FunctionId = Brand.nominal<FunctionId>();
@@ -16,16 +20,16 @@ export interface FunctionNode {
 export interface CallEdge {
   readonly callerId: FunctionId;
   readonly calleeId: FunctionId;
-  readonly calls: number;
+  readonly calls: Cost;
   readonly callsiteLine: number;
-  readonly inclusive: number;
-  readonly exclusive: number;
-  readonly inclusiveCosts: readonly number[];
+  readonly inclusive: Cost;
+  readonly exclusive: Cost;
+  readonly inclusiveCosts: readonly Cost[];
 }
 
 export interface LineCost {
   readonly line: number;
-  readonly costs: readonly number[];
+  readonly costs: readonly Cost[];
 }
 
 export interface FunctionStats {
@@ -33,12 +37,12 @@ export interface FunctionStats {
   readonly name: string;
   readonly file: string;
   readonly line: number;
-  readonly selfCost: number;
-  readonly totalCost: number;
-  readonly selfCosts: readonly number[];
-  readonly totalCosts: readonly number[];
+  readonly selfCost: Cost;
+  readonly totalCost: Cost;
+  readonly selfCosts: readonly Cost[];
+  readonly totalCosts: readonly Cost[];
   readonly lineCosts: readonly LineCost[];
-  readonly calls: number;
+  readonly calls: Cost;
   readonly callers: readonly FunctionId[];
   readonly callees: readonly FunctionId[];
 }
@@ -47,10 +51,10 @@ export interface ProfileData {
   readonly functions: ReadonlyMap<FunctionId, FunctionNode>;
   readonly edges: readonly CallEdge[];
   readonly stats: ReadonlyMap<FunctionId, FunctionStats>;
-  readonly totalCost: number;
+  readonly totalCost: Cost;
   readonly eventType: string;
   readonly eventTypes: readonly string[];
-  readonly totalCosts: readonly number[];
+  readonly totalCosts: readonly Cost[];
 }
 
 export interface ParseProgress {
@@ -64,24 +68,24 @@ export interface DiffEntry {
   readonly name: string;
   readonly file: string;
   readonly line: number;
-  readonly selfCostA: number;
-  readonly selfCostB: number;
-  readonly totalCostA: number;
-  readonly totalCostB: number;
-  readonly selfDelta: number;
-  readonly totalDelta: number;
+  readonly selfCostA: Cost;
+  readonly selfCostB: Cost;
+  readonly totalCostA: Cost;
+  readonly totalCostB: Cost;
+  readonly selfDelta: CostDelta;
+  readonly totalDelta: CostDelta;
   readonly selfDeltaPct: number;
   readonly totalDeltaPct: number;
-  readonly callsA: number;
-  readonly callsB: number;
+  readonly callsA: Cost;
+  readonly callsB: Cost;
   readonly status: 'unchanged' | 'improved' | 'regressed' | 'added' | 'removed';
 }
 
 export interface DiffResult {
   readonly entries: readonly DiffEntry[];
-  readonly totalCostA: number;
-  readonly totalCostB: number;
-  readonly totalDelta: number;
+  readonly totalCostA: Cost;
+  readonly totalCostB: Cost;
+  readonly totalDelta: CostDelta;
   readonly totalDeltaPct: number;
   readonly metricName: string;
   readonly filenameA: string;
@@ -108,10 +112,10 @@ export interface SerializedProfileData {
   readonly functions: ReadonlyArray<readonly [number, FunctionNode]>;
   readonly edges: readonly CallEdge[];
   readonly stats: ReadonlyArray<readonly [number, FunctionStats]>;
-  readonly totalCost: number;
+  readonly totalCost: Cost;
   readonly eventType: string;
   readonly eventTypes: readonly string[];
-  readonly totalCosts: readonly number[];
+  readonly totalCosts: readonly Cost[];
 }
 
 export const serializeProfileData = (data: ProfileData): SerializedProfileData => ({

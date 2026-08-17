@@ -19,8 +19,9 @@ class CacheStaleError extends Data.TaggedError('CacheStaleError')<{
   readonly path: FilePath;
 }> {}
 
-const CACHE_VERSION = 1;
-const CACHE_PREFIX = `profile_cache_v${CACHE_VERSION}_`;
+const CACHE_VERSION = 2;
+const CACHE_NAMESPACE = 'profile_cache_v';
+const CACHE_PREFIX = `${CACHE_NAMESPACE}${CACHE_VERSION}_`;
 
 interface CacheEntry {
   readonly mtime: number;
@@ -96,7 +97,7 @@ export class ProfileCache {
   }
 
   async clear(): Promise<number> {
-    const keys = this.storage.keys().filter((k) => k.startsWith(CACHE_PREFIX));
+    const keys = this.storage.keys().filter((key) => key.startsWith(CACHE_NAMESPACE));
     await Promise.all(keys.map((k) => this.storage.update(k, undefined)));
     return keys.length;
   }

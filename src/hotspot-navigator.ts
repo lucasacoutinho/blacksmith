@@ -2,9 +2,7 @@ import * as vscode from 'vscode';
 import { ProfileContext } from './profile-context';
 import { LineViewDecorations } from './line-view';
 import type { FunctionStats } from './types';
-
-const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
-const formatCost = (value: number): string => formatter.format(Math.round(value));
+import { ZERO_COST, costRatio, formatExactCost } from './cost';
 
 export class HotspotNavigator implements vscode.Disposable {
   private readonly statusBarItem: vscode.StatusBarItem;
@@ -65,16 +63,16 @@ export class HotspotNavigator implements vscode.Disposable {
 
     const data = this.profileContext.data;
     const metricIndex = this.profileContext.activeMetricIndex;
-    const totalCostAll = data?.totalCosts?.[metricIndex] ?? data?.totalCost ?? 0;
+    const totalCostAll = data?.totalCosts?.[metricIndex] ?? data?.totalCost ?? ZERO_COST;
 
     const items = this.hotspots.map((fn, index) => {
       const cost = fn.totalCosts?.[metricIndex] ?? fn.totalCost;
       const selfCost = fn.selfCosts?.[metricIndex] ?? fn.selfCost;
-      const percent = totalCostAll > 0 ? ((cost / totalCostAll) * 100).toFixed(1) : '0.0';
+      const percent = (costRatio(cost, totalCostAll) * 100).toFixed(1);
 
       return {
         label: `$(symbol-function) ${fn.name}`,
-        description: `${percent}% — self: ${formatCost(selfCost)}, total: ${formatCost(cost)}`,
+        description: `${percent}% — self: ${formatExactCost(selfCost)}, total: ${formatExactCost(cost)}`,
         detail: `${fn.file}:${fn.line}`,
         index,
       };

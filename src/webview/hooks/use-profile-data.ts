@@ -2,7 +2,8 @@ import { useDeferredValue, useMemo } from 'react';
 import { pipe, Match, Option } from 'effect';
 import { useProfileStore } from '../store';
 import { buildEdgeIndex, type EdgeIndex } from '../utils/edge-index';
-import type { FunctionStats, CallEdge, SerializedProfileData } from '../../types';
+import type { Cost, FunctionStats, CallEdge, SerializedProfileData } from '../../types';
+import { ZERO_COST, compareCosts } from '../../cost';
 
 type ProfileState = ReturnType<typeof useProfileStore.getState>['profile'];
 
@@ -85,10 +86,10 @@ export const useFilteredStats = (): readonly FunctionStats[] => {
         Match.value(sortKey),
         Match.when('name', () => a.name.localeCompare(b.name)),
         Match.when('file', () => a.file.localeCompare(b.file)),
-        Match.when('selfCost', () => getCost(a, 'self') - getCost(b, 'self')),
-        Match.when('totalCost', () => getCost(a, 'total') - getCost(b, 'total')),
-        Match.when('percent', () => getCost(a, 'total') - getCost(b, 'total')),
-        Match.when('calls', () => a.calls - b.calls),
+        Match.when('selfCost', () => compareCosts(getCost(a, 'self'), getCost(b, 'self'))),
+        Match.when('totalCost', () => compareCosts(getCost(a, 'total'), getCost(b, 'total'))),
+        Match.when('percent', () => compareCosts(getCost(a, 'total'), getCost(b, 'total'))),
+        Match.when('calls', () => compareCosts(a.calls, b.calls)),
         Match.exhaustive,
       );
       return sortDir === 'desc' ? -cmp : cmp;
@@ -110,7 +111,7 @@ export const useFilteredCount = (): number => {
   }, [stats, searchIndex, deferredSearch]);
 };
 
-export const useTotalCost = (): number => {
+export const useTotalCost = (): Cost => {
   const profile = useProfileStore((s) => s.profile);
   const metricIdx = useProfileStore((s) => s.selectedMetricIndex);
 
@@ -119,7 +120,7 @@ export const useTotalCost = (): number => {
       pipe(
         extractData(profile),
         Option.map((data) => data.totalCosts?.[metricIdx] ?? data.totalCost),
-        Option.getOrElse(() => 0),
+        Option.getOrElse(() => ZERO_COST),
       ),
     [profile, metricIdx],
   );

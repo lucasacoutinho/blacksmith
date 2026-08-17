@@ -6,7 +6,8 @@ import { App } from '../src/webview/components/App';
 import { useProfileStore } from '../src/webview/store';
 import { handleExtensionMessage } from '../src/webview/webview-runtime';
 import { initializeVsCodeBridge } from '../src/webview/vscode-bridge';
-import { FunctionId, type DiffResult, type SerializedProfileData } from '../src/types';
+import { Cost, FunctionId, type DiffResult, type SerializedProfileData } from '../src/types';
+import { subtractCosts } from '../src/cost';
 
 class ResizeObserverStub {
   observe() {}
@@ -94,21 +95,21 @@ describe('webview runtime', () => {
             name: 'hotFunction',
             file: '/src/hot.ts',
             line: 12,
-            selfCost: 40,
-            totalCost: 100,
-            selfCosts: [40],
-            totalCosts: [100],
+            selfCost: Cost(40),
+            totalCost: Cost(100),
+            selfCosts: [Cost(40)],
+            totalCosts: [Cost(100)],
             lineCosts: [],
-            calls: 3,
+            calls: Cost(3),
             callers: [],
             callees: [],
           },
         ],
       ],
-      totalCost: 100,
+      totalCost: Cost(100),
       eventType: 'Time',
       eventTypes: ['Time'],
-      totalCosts: [100],
+      totalCosts: [Cost(100)],
     };
 
     act(() => handleExtensionMessage({ type: 'data', data }));
@@ -123,22 +124,22 @@ describe('webview runtime', () => {
           name: 'hotFunction',
           file: '/src/hot.ts',
           line: 12,
-          selfCostA: 40,
-          selfCostB: 45,
-          totalCostA: 100,
-          totalCostB: 120,
-          selfDelta: 5,
-          totalDelta: 20,
+          selfCostA: Cost(40),
+          selfCostB: Cost(45),
+          totalCostA: Cost(100),
+          totalCostB: Cost(120),
+          selfDelta: subtractCosts(Cost(45), Cost(40)),
+          totalDelta: subtractCosts(Cost(120), Cost(100)),
           selfDeltaPct: 12.5,
           totalDeltaPct: 20,
-          callsA: 3,
-          callsB: 4,
+          callsA: Cost(3),
+          callsB: Cost(4),
           status: 'regressed',
         },
       ],
-      totalCostA: 100,
-      totalCostB: 120,
-      totalDelta: 20,
+      totalCostA: Cost(100),
+      totalCostB: Cost(120),
+      totalDelta: subtractCosts(Cost(120), Cost(100)),
       totalDeltaPct: 20,
       metricName: 'Time',
       filenameA: 'before.callgrind',

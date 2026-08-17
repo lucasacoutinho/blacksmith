@@ -12,7 +12,8 @@ import { useProfileStore, useFunctionCost } from '../store';
 import { useResizeObserver, useStatsData, useEdges, useEdgeIndex, useTotalCost } from '../hooks';
 import { formatCost, calculatePercent, truncateName, getCostColor } from '../utils';
 import { LAYOUT, LIMITS } from '../constants';
-import type { FunctionStats, CallEdge } from '../../types';
+import type { Cost, FunctionStats, CallEdge } from '../../types';
+import { compareCosts, costRatio } from '../../cost';
 import type { EdgeIndex } from '../utils/edge-index';
 import { postWebviewMessage } from '../vscode-bridge';
 
@@ -69,7 +70,7 @@ const buildGraph = (
   edgeIndex: EdgeIndex,
   statsMap: ReadonlyMap<number, FunctionStats>,
   selectedId: number | null,
-  getTotalCost: (fn: FunctionStats) => number,
+  getTotalCost: (fn: FunctionStats) => Cost,
 ) => {
   const functionsToShow =
     selectedId !== null ? findDescendants(selectedId, edgeIndex) : new Set(stats.map((s) => s.id));
@@ -86,7 +87,7 @@ const buildGraph = (
     A.filter((id) => !hasCallers.has(id)),
     A.map((id) => statsMap.get(id)),
     A.filter((fn): fn is FunctionStats => fn !== undefined),
-    (arr) => [...arr].sort((a, b) => getTotalCost(b) - getTotalCost(a)),
+    (arr) => [...arr].sort((a, b) => compareCosts(getTotalCost(b), getTotalCost(a))),
   );
 
   const depths = new Map<number, number>();
@@ -121,7 +122,7 @@ const buildGraph = (
     ids.sort((a, b) => {
       const fnA = statsMap.get(a),
         fnB = statsMap.get(b);
-      return fnA && fnB ? getTotalCost(fnB) - getTotalCost(fnA) : 0;
+      return fnA && fnB ? compareCosts(getTotalCost(fnB), getTotalCost(fnA)) : 0;
     });
   }
 
@@ -303,7 +304,7 @@ export const CallGraph = memo(function CallGraph() {
         <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
           {graphEdges.map(({ from, to, edge }) => {
             const cost = getEdgeCost(edge);
-            const strokeWidth = Math.max(1, Math.min(4, (cost / totalCost) * 40));
+            const strokeWidth = Math.max(1, Math.min(4, costRatio(cost, totalCost) * 40));
             const x1 = from.x,
               y1 = from.y + LAYOUT.NODE_HEIGHT,
               x2 = to.x,

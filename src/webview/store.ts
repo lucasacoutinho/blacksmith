@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { create } from 'zustand';
 import { pipe, Match, Option } from 'effect';
 import { postWebviewMessage } from './vscode-bridge';
-import type { SerializedProfileData, FunctionStats, CallEdge, DiffResult } from '../types';
+import type { Cost, SerializedProfileData, FunctionStats, CallEdge, DiffResult } from '../types';
+import { ZERO_COST, compareCosts } from '../cost';
 
 export type TabId = 'flat' | 'callgraph' | 'callermap' | 'flamegraph' | 'diff';
 export type SortKey = 'name' | 'file' | 'selfCost' | 'totalCost' | 'calls' | 'percent';
@@ -41,7 +42,7 @@ interface ProfileStore {
   clearDiff: () => void;
   getStats: () => readonly FunctionStats[];
   getFilteredStats: () => readonly FunctionStats[];
-  getTotalCost: () => number;
+  getTotalCost: () => Cost;
   getEventTypes: () => readonly string[];
   getCurrentMetric: () => string;
   getEdges: () => readonly CallEdge[];
@@ -156,10 +157,10 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
             Match.value(sortKey),
             Match.when('name', () => a.name.localeCompare(b.name)),
             Match.when('file', () => a.file.localeCompare(b.file)),
-            Match.when('selfCost', () => getCost(a, 'self') - getCost(b, 'self')),
-            Match.when('totalCost', () => getCost(a, 'total') - getCost(b, 'total')),
-            Match.when('percent', () => getCost(a, 'total') - getCost(b, 'total')),
-            Match.when('calls', () => a.calls - b.calls),
+            Match.when('selfCost', () => compareCosts(getCost(a, 'self'), getCost(b, 'self'))),
+            Match.when('totalCost', () => compareCosts(getCost(a, 'total'), getCost(b, 'total'))),
+            Match.when('percent', () => compareCosts(getCost(a, 'total'), getCost(b, 'total'))),
+            Match.when('calls', () => compareCosts(a.calls, b.calls)),
             Match.exhaustive,
           );
           return sortDir === 'desc' ? -cmp : cmp;
@@ -171,7 +172,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     pipe(
       extractData(get().profile),
       Option.map((data) => data.totalCosts?.[get().selectedMetricIndex] ?? data.totalCost),
-      Option.getOrElse(() => 0),
+      Option.getOrElse(() => ZERO_COST),
     ),
 
   getEventTypes: () =>

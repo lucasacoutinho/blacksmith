@@ -28,8 +28,8 @@ jobs:
           ocaml-compiler: '5.2'
           dune-cache: true
 
-      - name: Install Melange
-        run: opam install -y dune.3.21.0 melange.6.0.1-52
+      - name: Install OCaml tools
+        run: opam install -y dune.3.21.0 melange.6.0.1-52 ocamlformat.0.28.1
 
       - name: Install npm dependencies
         run: npm ci
