@@ -5,8 +5,28 @@ updates:
     schedule:
       interval: weekly
     groups:
+      react:
+        patterns:
+          - react
+          - react-dom
+          - '@types/react'
+          - '@types/react-dom'
       development-dependencies:
         dependency-type: development
+        update-types:
+          - minor
+          - patch
+        exclude-patterns:
+          - '@types/react'
+          - '@types/react-dom'
+    ignore:
+      - dependency-name: '@types/node'
+        update-types:
+          - version-update:semver-major
+      - dependency-name: '@types/vscode'
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-major
 
   - package-ecosystem: github-actions
     directory: /

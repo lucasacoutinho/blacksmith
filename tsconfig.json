@@ -15,6 +15,7 @@
     "sourceMap": true,
     "jsx": "react-jsx",
     "resolveJsonModule": true,
+    "types": ["node"],
     "noEmit": true
   },
   "include": ["src/**/*"],

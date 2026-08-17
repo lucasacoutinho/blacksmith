@@ -6,8 +6,7 @@
 
   <p>Read Callgrind and Cachegrind profiles without leaving VS Code.</p>
 
-<a href="https://marketplace.visualstudio.com/items?itemName=lucasalvcoutinho.blacksmith"><img alt="VS Code Marketplace version" src="https://img.shields.io/visual-studio-marketplace/v/lucasalvcoutinho.blacksmith.svg?style=for-the-badge&labelColor=000000"></a>
-<a href="https://marketplace.visualstudio.com/items?itemName=lucasalvcoutinho.blacksmith"><img alt="VS Code Marketplace installs" src="https://img.shields.io/visual-studio-marketplace/i/lucasalvcoutinho.blacksmith.svg?style=for-the-badge&labelColor=000000"></a>
+<a href="https://marketplace.visualstudio.com/items?itemName=lucasalvcoutinho.blacksmith"><img alt="Install Blacksmith from the VS Code Marketplace" src="https://img.shields.io/badge/VS_Code_Marketplace-install-007ACC?style=for-the-badge&labelColor=000000"></a>
 <a href="https://open-vsx.org/extension/lucasalvcoutinho/blacksmith"><img alt="Open VSX version" src="https://img.shields.io/open-vsx/v/lucasalvcoutinho/blacksmith?style=for-the-badge&labelColor=000000"></a>
 <a href="./LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/lucasacoutinho/blacksmith.svg?style=for-the-badge&labelColor=000000"></a>
 </div>
@@ -82,7 +81,7 @@ pyprof2calltree -i profile.out -o profile.callgrind
 
 Blacksmith uses TypeScript for the extension host, React for the webview, and an OCaml parser compiled to JavaScript by Melange.
 
-You need Node.js 22 or newer, npm, and opam. The repository and CI use OCaml 5.2.
+You need Node.js 22.22.2 or newer, npm, and opam. The repository and CI use OCaml 5.2.
 
 ```bash
 opam switch create . 5.2.1

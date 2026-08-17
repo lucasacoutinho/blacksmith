@@ -1,13 +1,5 @@
-import {
-  useCallback,
-  useState,
-  useRef,
-  memo,
-  type CSSProperties,
-  type KeyboardEvent,
-  type MouseEvent,
-} from 'react';
-import { FixedSizeList as List } from 'react-window';
+import { useCallback, useState, useRef, memo, type KeyboardEvent, type MouseEvent } from 'react';
+import { List, type ListImperativeAPI, type RowComponentProps } from 'react-window';
 import { useProfileStore, useFunctionCost, type SortKey } from '../store';
 import { useResizeObserver, useFilteredStats, useTotalCost } from '../hooks';
 import { formatCost, shortenPath, calculatePercent } from '../utils';
@@ -20,30 +12,31 @@ const copyToClipboard = (text: string, e: MouseEvent) => {
   navigator.clipboard.writeText(text);
 };
 
-interface RowProps {
-  readonly index: number;
-  readonly style: CSSProperties;
+interface FlatRowData {
   readonly stats: readonly FunctionStats[];
   readonly totalCost: number;
-  readonly isFocused: boolean;
+  readonly focusedIndex: number;
   readonly onOpenFile: (path: string, line: number) => void;
   readonly onSelectFunction: (id: number) => void;
 }
 
-const Row = memo(function Row({
+type FlatRowProps = RowComponentProps<FlatRowData>;
+
+const Row = function Row({
   index,
   style,
   stats,
   totalCost,
-  isFocused,
+  focusedIndex,
   onOpenFile,
   onSelectFunction,
-}: RowProps) {
+}: FlatRowProps) {
   const { getSelfCost, getTotalCost } = useFunctionCost();
   const fn = stats[index];
   const selfCost = getSelfCost(fn);
   const fnTotalCost = getTotalCost(fn);
   const percent = calculatePercent(fnTotalCost, totalCost);
+  const isFocused = index === focusedIndex;
 
   return (
     <div
@@ -102,7 +95,7 @@ const Row = memo(function Row({
       </div>
     </div>
   );
-});
+};
 
 const ariaSort = (
   key: SortKey,
@@ -113,7 +106,7 @@ const ariaSort = (
 
 export const FlatProfile = memo(function FlatProfile() {
   const [containerRef, { height }] = useResizeObserver<HTMLDivElement>(32);
-  const listRef = useRef<List>(null);
+  const listRef = useRef<ListImperativeAPI>(null);
   const [focusedIndex, setFocusedIndex] = useState(-1);
 
   const stats = useFilteredStats();
@@ -144,7 +137,7 @@ export const FlatProfile = memo(function FlatProfile() {
 
   const focusRow = useCallback((index: number) => {
     setFocusedIndex(index);
-    if (index >= 0) listRef.current?.scrollToItem(index, 'smart');
+    if (index >= 0) listRef.current?.scrollToRow({ index, align: 'smart' });
   }, []);
 
   const onKeyDown = useCallback(
@@ -241,24 +234,20 @@ export const FlatProfile = memo(function FlatProfile() {
         </div>
       </div>
       <List
-        ref={listRef}
-        height={height || 400}
-        itemCount={stats.length}
-        itemSize={LAYOUT.ROW_HEIGHT}
-        width="100%"
-      >
-        {({ index, style }) => (
-          <Row
-            index={index}
-            style={style}
-            stats={stats}
-            totalCost={totalCost}
-            isFocused={index === focusedIndex}
-            onOpenFile={onOpenFile}
-            onSelectFunction={onSelectFunction}
-          />
-        )}
-      </List>
+        listRef={listRef}
+        role="presentation"
+        style={{ height: height || 400 }}
+        rowComponent={Row}
+        rowCount={stats.length}
+        rowHeight={LAYOUT.ROW_HEIGHT}
+        rowProps={{
+          stats,
+          totalCost,
+          focusedIndex,
+          onOpenFile,
+          onSelectFunction,
+        }}
+      />
     </div>
   );
 });
