@@ -1,7 +1,7 @@
 {
   "name": "blacksmith",
   "displayName": "Blacksmith",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Visualize callgrind/cachegrind profiles with Flat Profile, Call Graph, Caller Map, and Flame Graph views",
   "categories": [
     "Debuggers",
