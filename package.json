@@ -66,9 +66,9 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@testing-library/react": "^16.3.2",
+    "@testing-library/react": "^16.3.3",
     "@types/mocha": "^10.0.10",
-    "@types/node": "^22.20.1",
+    "@types/node": "^22.20.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@types/vscode": "^1.85.0",
@@ -77,9 +77,9 @@
     "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.28.2",
     "jsdom": "^30.0.1",
-    "ovsx": "^1.1.1",
-    "oxfmt": "^0.63.0",
-    "oxlint": "^1.78.0",
+    "ovsx": "^1.2.0",
+    "oxfmt": "^0.67.0",
+    "oxlint": "^1.82.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
