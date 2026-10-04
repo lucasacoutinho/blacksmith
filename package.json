@@ -59,7 +59,7 @@
     "publish:open-vsx": "ovsx publish --no-dependencies --skip-duplicate"
   },
   "dependencies": {
-    "effect": "^3.22.2",
+    "effect": "^4.0.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-window": "^2.3.1",
