@@ -19,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '22.22.2'
+          node-version: '22.23.4'
           cache: 'npm'
 
       - name: Setup OCaml
@@ -31,7 +31,7 @@ jobs:
           dune-cache: true
 
       - name: Install OCaml tools
-        run: opam install -y dune.3.21.0 melange.6.0.1-52 ocamlformat.0.28.1
+        run: opam install -y dune.3.24.2 melange.7.0.1-52 ocamlformat.0.29.0
 
       - name: Install npm dependencies
         run: npm ci

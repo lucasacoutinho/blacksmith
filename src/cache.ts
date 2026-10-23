@@ -71,7 +71,7 @@ export class ProfileCache {
       pipe(
         statFile(path),
         Effect.flatMap((stat) => validateEntry(path, entry, stat)),
-        Effect.catchAll(() => Effect.succeed(null as SerializedProfileData | null)),
+        Effect.catch(() => Effect.succeed(null)),
       ),
     );
   }
@@ -91,7 +91,7 @@ export class ProfileCache {
         statFile(path),
         Effect.map(createEntry),
         Effect.flatMap((entry) => Effect.promise(() => this.storage.update(key, entry))),
-        Effect.catchAll(() => Effect.void),
+        Effect.catch(() => Effect.void),
       ),
     );
   }

@@ -114,12 +114,12 @@ let decode_positions state fields =
   let rec decode previous values decoded =
     match (previous, values) with
     | [], [] -> Some (List.rev decoded)
-    | previous :: previous_tail, value :: value_tail -> begin
-        match parse_subposition previous value with
+    | previous :: previous_tail, value :: value_tail ->
+        begin match parse_subposition previous value with
         | Some decoded_value ->
             decode previous_tail value_tail (decoded_value :: decoded)
         | None -> None
-      end
+        end
     | _ -> None
   in
   decode state.previous_positions fields []
@@ -139,11 +139,11 @@ let parse_cost value = Counter.of_string value
 let parse_costs values =
   let rec parse parsed = function
     | [] -> Some (List.rev parsed)
-    | value :: rest -> begin
-        match parse_cost value with
+    | value :: rest ->
+        begin match parse_cost value with
         | Some cost -> parse (cost :: parsed) rest
         | None -> None
-      end
+        end
   in
   parse [] values
 
@@ -151,8 +151,8 @@ let parse_cost_line state line =
   let fields = split_fields line in
   match split_at (List.length state.positions) fields with
   | None -> Invalid
-  | Some (position_fields, cost_fields) -> begin
-      match
+  | Some (position_fields, cost_fields) ->
+      begin match
         (decode_positions state position_fields, parse_costs cost_fields)
       with
       | Some decoded_positions, Some costs ->
@@ -160,23 +160,23 @@ let parse_cost_line state line =
             List.map (fun position -> Some position) decoded_positions;
           Cost { line = source_line state decoded_positions; costs }
       | _ -> Invalid
-    end
+      end
 
 let parse_calls state line =
   match split_fields (value_after '=' line) with
-  | count_value :: position_values -> begin
-      match
+  | count_value :: position_values ->
+      begin match
         ( parse_cost count_value,
           split_at (List.length state.positions) position_values )
       with
-      | Some count, Some (position_fields, _) -> begin
-          match decode_positions state position_fields with
+      | Some count, Some (position_fields, _) ->
+          begin match decode_positions state position_fields with
           | Some decoded_positions ->
               Calls { count; target_line = source_line state decoded_positions }
           | None -> Invalid
-        end
+          end
       | _ -> Invalid
-    end
+      end
   | [] -> Invalid
 
 let is_cost_start = function '0' .. '9' | '+' | '-' | '*' -> true | _ -> false
@@ -199,16 +199,16 @@ let lex_line state line : token =
     | "part" ->
         reset_positions state [ "line" ];
         Part
-    | "summary" -> begin
-        match parse_costs (split_fields (value_after ':' line)) with
+    | "summary" ->
+        begin match parse_costs (split_fields (value_after ':' line)) with
         | Some costs -> Summary costs
         | None -> Invalid
-      end
-    | "totals" -> begin
-        match parse_costs (split_fields (value_after ':' line)) with
+        end
+    | "totals" ->
+        begin match parse_costs (split_fields (value_after ':' line)) with
         | Some costs -> Totals costs
         | None -> Invalid
-      end
+        end
     | prefix when List.mem prefix header_keys -> Header prefix
     | "fl" | "fi" | "fe" ->
         File (resolve_compressed (value_after '=' line) state.file_compression)

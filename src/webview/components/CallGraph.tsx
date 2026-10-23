@@ -241,7 +241,7 @@ export const CallGraph = memo(function CallGraph() {
     (e: WheelEvent) => {
       e.preventDefault();
       pipe(
-        Option.fromNullable(svgRef.current?.getBoundingClientRect()),
+        Option.fromNullishOr(svgRef.current?.getBoundingClientRect()),
         Option.map((rect) => {
           const mx = e.clientX - rect.left,
             my = e.clientY - rect.top;

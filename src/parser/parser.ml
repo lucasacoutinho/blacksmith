@@ -370,11 +370,11 @@ let interpret state token =
   | Calls { count; target_line = _ } ->
       cancel_pending_call state;
       state.pending_call <- Some { count; target = pending_target state }
-  | Cost { line; costs } -> begin
-      match state.pending_call with
+  | Cost { line; costs } ->
+      begin match state.pending_call with
       | Some pending -> record_call_cost state pending line costs
       | None -> record_self_cost state line costs
-    end
+      end
 
 let add_indexed_edge table id edge =
   let edges = Option.value (Hashtbl.find_opt table id) ~default:[] in

@@ -71,14 +71,10 @@ export class ProfileContext {
   ): FunctionStats[] {
     if (!this._data || !this._indices) return [];
     const allStats = Array.from(this._indices.statsById.values());
-    return allStats
-      .sort((a, b) => {
-        const getCost = (s: FunctionStats) =>
-          sortBy === 'selfCost'
-            ? (s.selfCosts?.[metricIndex] ?? s.selfCost)
-            : (s.totalCosts?.[metricIndex] ?? s.totalCost);
-        return compareCosts(getCost(b), getCost(a));
-      })
-      .slice(0, count);
+    const getCost = (s: FunctionStats) =>
+      sortBy === 'selfCost'
+        ? (s.selfCosts?.[metricIndex] ?? s.selfCost)
+        : (s.totalCosts?.[metricIndex] ?? s.totalCost);
+    return allStats.sort((a, b) => compareCosts(getCost(b), getCost(a))).slice(0, count);
   }
 }

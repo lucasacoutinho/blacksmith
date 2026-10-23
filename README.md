@@ -85,7 +85,7 @@ You need Node.js 22.22.2 or newer, npm, and opam. The repository and CI use OCam
 
 ```bash
 opam switch create . 5.2.1
-opam install dune.3.21.0 melange.6.0.1-52
+opam install dune.3.24.2 melange.7.0.1-52 ocamlformat.0.29.0
 
 npm ci
 npm run build

@@ -46,10 +46,10 @@ export const handleKeyboardShortcut = (event: KeyboardEvent): void => {
   }
 };
 
+const onMessage = (event: MessageEvent<ExtensionMessage>) => handleExtensionMessage(event.data);
+
 export const startWebviewRuntime = (api: VsCodeApi): (() => void) => {
   initializeVsCodeBridge(api);
-
-  const onMessage = (event: MessageEvent<ExtensionMessage>) => handleExtensionMessage(event.data);
 
   window.addEventListener('message', onMessage);
   window.addEventListener('keydown', handleKeyboardShortcut);
