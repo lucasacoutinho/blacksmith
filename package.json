@@ -62,7 +62,7 @@
     "effect": "^4.1.2",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "react-window": "^2.5.0",
+    "react-window": "^2.5.3",
     "zustand": "^5.0.16"
   },
   "devDependencies": {
