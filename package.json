@@ -74,14 +74,14 @@
     "@types/vscode": "1.85.0",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^3.1.0",
-    "@vscode/vsce": "^4.1.0",
+    "@vscode/vsce": "^4.1.1",
     "esbuild": "^0.28.2",
     "jsdom": "^31.0.1",
     "ovsx": "^1.4.0",
-    "oxfmt": "^0.78.0",
-    "oxlint": "^1.93.0",
+    "oxfmt": "^0.79.0",
+    "oxlint": "^1.94.0",
     "typescript": "^7.0.2",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.1"
   },
   "overrides": {
     "@azure/msal-node": "^7.1.1",
